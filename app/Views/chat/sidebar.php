@@ -1,5 +1,4 @@
 <div id="sidebar">
-    <!-- Sidebar Header (User, Settings, Theme) now at the bottom as per user preference -->
     <div class="p-3">
         <button class="new-chat-btn w-100">
             <i class="fa-solid fa-plus me-2"></i> New Chat
@@ -26,7 +25,7 @@
             </ul>
         </div>
         <div class="p-2 pt-0">
-            <div class="history-item">
+            <div class="history-item" id="openSettings">
                 <i class="fa-solid fa-gear me-2"></i> Settings
             </div>
             <div class="history-item">

@@ -6,15 +6,25 @@ $(document).ready(function() {
     const savedTheme = localStorage.getItem('chat-theme') || 'solarized';
     applyTheme(savedTheme);
 
-    $('.theme-menu .dropdown-item').on('click', function(e) {
+    $('.theme-menu .dropdown-item, .theme-selector-modal .theme-card').on('click', function(e) {
         e.preventDefault();
         const theme = $(this).data('theme');
         applyTheme(theme);
         localStorage.setItem('chat-theme', theme);
+        
+        // Update active class for theme cards
+        if ($(this).hasClass('theme-card')) {
+            $('.theme-card').removeClass('active');
+            $(this).addClass('active');
+        }
     });
 
     function applyTheme(theme) {
         $('body').attr('data-theme', theme);
+        // Sync active class in modal if it's open
+        $('.theme-card').removeClass('active');
+        $(`.theme-card[data-theme="${theme}"]`).addClass('active');
+        
         // Update dropdown menu style based on theme
         if (theme === 'white') {
             $('.dropdown-menu').removeClass('dropdown-menu-dark');
@@ -22,6 +32,11 @@ $(document).ready(function() {
             $('.dropdown-menu').addClass('dropdown-menu-dark');
         }
     }
+
+    // Modal Trigger
+    $('#openSettings').on('click', function() {
+        $('#settingsModal').modal('show');
+    });
 
     // Auto-resize textarea
     $chatInput.on('input', function() {
@@ -46,11 +61,9 @@ $(document).ready(function() {
         const message = $chatInput.val().trim();
         if (message === '') return;
 
-        // Append user message
         appendMessage('user', message);
         $chatInput.val('').css('height', 'auto');
 
-        // Simulate AI response (demo only)
         setTimeout(() => {
             appendMessage('ai', 'This is a demo response. You can connect your backend AI here.');
         }, 1000);
@@ -66,13 +79,11 @@ $(document).ready(function() {
         `;
         $chatContainer.append(messageHtml);
         
-        // Scroll to bottom
         $chatContainer.animate({
             scrollTop: $chatContainer[0].scrollHeight
         }, 500);
     }
 
-    // Sidebar toggle (for mobile)
     $('.toggle-sidebar').on('click', function() {
         $('#sidebar').toggleClass('collapsed');
     });
