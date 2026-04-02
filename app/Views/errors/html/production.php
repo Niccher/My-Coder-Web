@@ -1,25 +1,17 @@
-<!doctype html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="robots" content="noindex">
+<?php
+$title = '500 - Server Error';
+include __DIR__ . '/_header.php';
+?>
 
-    <title><?= lang('Errors.whoops') ?></title>
+<div class="error-code">500</div>
+<h3 class="fw-bold text-main">Internal Server Error</h3>
 
-    <style>
-        <?= preg_replace('#[\r\n\t ]+#', ' ', file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'debug.css')) ?>
-    </style>
-</head>
-<body>
+<p class="text-muted mt-3 mb-4 px-md-4">
+    Whoops! We seem to have hit a snag. Please try again later. If the problem persists, please contact support.
+</p>
 
-    <div class="container text-center">
+<a href="<?= base_url() ?>" class="error-btn">
+    <i class="fa-solid fa-rotate-right me-2"></i> Try Again
+</a>
 
-        <h1 class="headline"><?= lang('Errors.whoops') ?></h1>
-
-        <p class="lead"><?= lang('Errors.weHitASnag') ?></p>
-
-    </div>
-
-</body>
-
-</html>
+<?php include __DIR__ . '/_footer.php'; ?>

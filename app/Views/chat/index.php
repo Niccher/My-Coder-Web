@@ -17,6 +17,23 @@
         <textarea id="chat-input" placeholder="Type a message..." rows="1"></textarea>
         <button id="send-btn" class="action-btn text-primary"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
+
+    <!-- Active Models Container -->
+    <div class="active-models-container mt-3 d-flex flex-column align-items-center gap-2">
+        <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
+                Gemini 1.5</button>
+            <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
+                DeepSeek R1</button>
+            <button class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
+                Grok-2</button>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal" style="font-size: 0.75rem;">
+                <i class="fa-solid fa-brain me-1 text-danger"></i> Evaluated by Master Model (GPT-4o)
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- Settings Modal -->
@@ -272,6 +289,86 @@
                 </button>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Model Selection Modal -->
+<div class="modal fade" id="modelSelectionModal" tabindex="-1" aria-labelledby="modelSelectionModalLabel" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content settings-modal border-0 shadow-lg" style="max-height: 85vh;">
+            <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
+                <h5 class="modal-title fw-bold" id="modelSelectionModalLabel">
+                    <i class="fa-solid fa-layer-group me-2 opacity-50"></i>Model Selection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4" style="overflow-y: auto;">
+                <p class="text-muted small mb-4">Choose three primary models to query simultaneously, and one master
+                    model to evaluate their responses.</p>
+
+                <h6 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-microchip me-2"></i>Primary Models</h6>
+
+                <!-- Primary Model 1 -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Model 1</label>
+                    <select class="form-select bg-themed border-secondary-subtle">
+                        <option selected="">Gemini 1.5</option>
+                        <option>GPT-4o</option>
+                        <option>Claude 3.5 Sonnet</option>
+                        <option>DeepSeek R1</option>
+                        <option>Grok-2</option>
+                    </select>
+                </div>
+
+                <!-- Primary Model 2 -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Model 2</label>
+                    <select class="form-select bg-themed border-secondary-subtle">
+                        <option>Gemini 1.5</option>
+                        <option>GPT-4o</option>
+                        <option>Claude 3.5 Sonnet</option>
+                        <option selected="">DeepSeek R1</option>
+                        <option>Grok-2</option>
+                    </select>
+                </div>
+
+                <!-- Primary Model 3 -->
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold">Model 3</label>
+                    <select class="form-select bg-themed border-secondary-subtle">
+                        <option>Gemini 1.5</option>
+                        <option>GPT-4o</option>
+                        <option>Claude 3.5 Sonnet</option>
+                        <option>DeepSeek R1</option>
+                        <option selected="">Grok-2</option>
+                    </select>
+                </div>
+
+                <hr class="border-secondary-subtle mb-4">
+
+                <h6 class="fw-bold mb-3 text-info"><i class="fa-solid fa-brain me-2"></i>Master Model</h6>
+                <p class="text-muted" style="font-size: 0.8rem;">The Master Model evaluates the three responses and
+                    selects the best one.</p>
+                <!-- Master Model -->
+                <div class="mb-3">
+                    <select class="form-select bg-themed border-info">
+                        <option>Gemini 1.5</option>
+                        <option selected="">GPT-4o</option>
+                        <option>Claude 3.5 Sonnet</option>
+                        <option>DeepSeek R1</option>
+                        <option>Grok-2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer px-4 py-3 border-top border-secondary-subtle bg-dark bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4">
+                    <i class="fa-solid fa-check me-1"></i> Apply Models
+                </button>
+            </div>
         </div>
     </div>
 </div>

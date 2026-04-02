@@ -24,7 +24,7 @@
 </head>
 <body>
 
-    <div class="d-flex">
+    <div class="d-flex" id="app-layout">
         <!-- Sidebar -->
         <?= $this->include('chat/sidebar') ?>
 

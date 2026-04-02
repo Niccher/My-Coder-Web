@@ -71,10 +71,20 @@ $(document).ready(function() {
 
     function appendMessage(role, text) {
         const avatar = role === 'user' ? 'U' : 'AI';
+        const date = new Date();
+        const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        const dateStr = date.toLocaleDateString('en-GB', dateOptions);
+        const timeStr = date.toLocaleTimeString([], timeOptions);
+        const timestampStr = `${dateStr}, ${timeStr}`;
+        
         const messageHtml = `
             <div class="message ${role} animate__animated animate__fadeInUp">
                 <div class="avatar">${avatar}</div>
-                <div class="message-content">${text}</div>
+                <div class="message-body">
+                    <div class="message-content">${text}</div>
+                    <div class="message-timestamp">${timestampStr}</div>
+                </div>
             </div>
         `;
         $chatContainer.append(messageHtml);
