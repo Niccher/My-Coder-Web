@@ -2,9 +2,26 @@
 
 <?= $this->section('content')?>
 
-<div id="chat-container">
-    <div class="text-center my-5 animate__animated animate__fadeIn">
-        <h1 class="display-4 fw-bold mb-4"
+<!-- User Profile Dropdown -->
+<div class="user-profile-wrapper position-absolute top-0 end-0 mt-3 me-4" style="z-index: 100;">
+    <div class="dropdown">
+        <button class="btn btn-link p-1 text-decoration-none d-flex align-items-center gap-2 profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <div class="avatar-sm">D</div>
+            <span class="fw-medium text-themed d-none d-md-block">Domino AI</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary-subtle">
+            <li><h6 class="dropdown-header">Account</h6></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="fa-solid fa-user-gear opacity-50"></i> View Profile</a></li>
+            <li><button class="dropdown-item d-flex align-items-center gap-2" type="button" id="openSettingsDropdown"><i class="fa-solid fa-gear opacity-50"></i> Settings</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+    </div>
+</div>
+
+<div id="chat-container" class="d-flex flex-column">
+    <div id="greeting-box" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center pb-5 animate__animated animate__fadeIn">
+        <h1 class="display-4 fw-bold mb-3"
             style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             Hello, User</h1>
         <p class="lead text-muted">How can I help you today?</p>
