@@ -406,3 +406,65 @@ body {
     50% { opacity: 0.6; }
     100% { opacity: 0.3; }
 }
+
+/* ─── Markdown & Code Styling ──────────────── */
+pre[class*="language-"] {
+    border-radius: 0 0 12px 12px !important;
+    background: #212529 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow-x: auto;
+}
+
+code[class*="language-"] {
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
+    font-size: 0.87rem !important;
+    line-height: 1.7 !important;
+    background: transparent !important;
+    text-shadow: none !important;
+}
+
+/* Inline code */
+.markdown-body code:not([class*="language-"]),
+.message-content code:not([class*="language-"]) {
+    background: rgba(99, 102, 241, 0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.86em;
+}
+
+/* ─── Typing Cursor ────────────────────────── */
+.typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.2em;
+    background: var(--accent);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ─── File Upload Zone ──────────────────────── */
+.file-upload-zone {
+    border: 2px dashed transparent;
+    border-radius: 16px;
+    transition: all 0.25s ease;
+}
+.file-upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.04);
+    box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.07);
+}
+
+/* ─── File Chip Area ──────────────────────── */
+#file-preview-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 8px 18px 0;
+    margin-bottom: 6px;
+}

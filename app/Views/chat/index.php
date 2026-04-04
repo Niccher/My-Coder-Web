@@ -28,9 +28,11 @@
     </div>
 </div>
 
-<div id="input-wrapper">
+<div id="input-wrapper" class="file-upload-zone">
+    <div id="file-preview-area"></div>
     <div id="input-container">
-        <button class="action-btn"><i class="fa-solid fa-paperclip"></i></button>
+        <input type="file" id="file-upload-input" multiple style="display: none;">
+        <button id="upload-btn" class="action-btn"><i class="fa-solid fa-paperclip"></i></button>
         <textarea id="chat-input" placeholder="Type a message..." rows="1"></textarea>
         <button id="send-btn" class="action-btn text-primary"><i class="fa-solid fa-paper-plane"></i></button>
     </div>

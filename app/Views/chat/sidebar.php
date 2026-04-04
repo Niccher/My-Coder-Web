@@ -1,4 +1,8 @@
 <div id="sidebar">
+    <div class="p-3 d-flex align-items-center gap-3">
+        <img src="<?= base_url('favicon.png') ?>" alt="Logo" class="rounded-3 shadow-sm" style="width: 40px; height: 40px;">
+        <span class="fs-4 fw-bold tracking-tight text-main" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">myCoder chat</span>
+    </div>
     <div class="p-3">
         <button class="new-chat-btn w-100">
             <i class="fa-solid fa-plus me-2"></i> New Chat
