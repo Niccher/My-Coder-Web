@@ -6,6 +6,7 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'Chat::index', ['filter' => 'session']);
+$routes->get('/c/(:segment)', 'Chat::index/$1', ['filter' => 'session']);
 
 // API routes — all require session auth
 $routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Api'], static function ($routes) {
@@ -14,8 +15,9 @@ $routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Ap
     $routes->get('settings', 'SettingsController::index');
     $routes->post('settings', 'SettingsController::save');
 
+    $routes->get('conversations/paginated', 'ConversationsController::listPaginated');
     $routes->get('conversations', 'ConversationsController::index');
-    $routes->get('conversations/(:num)', 'ConversationsController::show/$1');
+    $routes->get('conversations/(:segment)', 'ConversationsController::show/$1');
     $routes->delete('conversations/(:num)', 'ConversationsController::delete/$1');
 });
 

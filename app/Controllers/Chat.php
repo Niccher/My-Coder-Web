@@ -4,8 +4,8 @@ namespace App\Controllers;
 
 class Chat extends BaseController
 {
-    public function index()
+    public function index($uuid = null)
     {
-        return view('chat/index');
+        return view('chat/index', ['chatUuid' => $uuid]);
     }
 }

@@ -9,7 +9,16 @@ class ConversationModel extends Model
     protected $table      = 'conversations';
     protected $primaryKey = 'id';
     protected $useTimestamps = true;
-    protected $allowedFields = ['user_id', 'title'];
+    protected $allowedFields = ['uuid', 'user_id', 'title'];
+    protected $beforeInsert  = ['generateUuid'];
+
+    protected function generateUuid(array $data)
+    {
+        if (!isset($data['data']['uuid'])) {
+            $data['data']['uuid'] = bin2hex(random_bytes(16));
+        }
+        return $data;
+    }
 
     /**
      * Get all conversations for a user, newest first

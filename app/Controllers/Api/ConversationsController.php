@@ -23,22 +23,61 @@ class ConversationsController extends BaseController
         return $this->respond($model->getForUser($userId));
     }
 
+    public function listPaginated(): ResponseInterface
+    {
+        $userId = auth()->id();
+        $page   = (int) $this->request->getGet('page') ?: 1;
+        $search = (string) $this->request->getGet('search');
+        $limit  = 10;
+        $offset = ($page - 1) * $limit;
+
+        $db = \Config\Database::connect();
+        $builder = $db->table('conversations');
+        $builder->select('conversations.*, GROUP_CONCAT(DISTINCT messages.model_name) as models')
+                ->join('messages', 'messages.conversation_id = conversations.id AND messages.role = "ai"', 'left')
+                ->where('conversations.user_id', $userId);
+        
+        if (!empty($search)) {
+            $builder->like('conversations.title', $search);
+        }
+
+        $builder->groupBy('conversations.id');
+        $total = $builder->countAllResults(false);
+
+        $builder->orderBy('conversations.updated_at', 'DESC');
+        $builder->limit($limit, $offset);
+        $results = $builder->get()->getResultArray();
+
+        return $this->respond([
+            'data'  => $results,
+            'total' => $total,
+            'page'  => $page,
+            'limit' => $limit,
+            'pages' => ceil($total / $limit),
+        ]);
+    }
+
     /**
      * GET /api/conversations/{id}
      * Returns a conversation with all messages
      */
-    public function show(int $id): ResponseInterface
+    public function show($id): ResponseInterface
     {
         $userId    = auth()->id();
         $convModel = new ConversationModel();
-        $conv      = $convModel->findForUser($id, $userId);
+        
+        if (is_numeric($id)) {
+            $conv = $convModel->findForUser($id, $userId);
+        } else {
+            $conv = $convModel->where('uuid', $id)->where('user_id', $userId)->first();
+        }
 
         if (!$conv) {
             return $this->failNotFound('Conversation not found.');
         }
 
         $msgModel = new MessageModel();
-        $conv['messages'] = $msgModel->getForConversation($id);
+        $conv['messages'] = $msgModel->getForConversation($conv['id']);
 
         return $this->respond($conv);
     }

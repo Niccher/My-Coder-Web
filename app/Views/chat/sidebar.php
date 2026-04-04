@@ -9,9 +9,15 @@
         </button>
     </div>
 
-    <div class="history-list flex-grow-1" id="sidebar-history-list">
+    <div class="history-list flex-grow-1" id="sidebar-history-list" style="overflow-y: auto;">
         <div class="section-header">Recent</div>
         <!-- Dynamically populated via JS -->
+    </div>
+    
+    <div class="p-3 border-top border-secondary-subtle">
+        <button class="btn btn-outline-secondary w-100 btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#allHistoryModal">
+            <i class="fa-solid fa-clock-rotate-left me-2"></i> Show All History
+        </button>
     </div>
 
     <div class="sidebar-footer border-top border-secondary-subtle">
@@ -29,8 +35,22 @@
             <div class="history-item" id="openSettings">
                 <i class="fa-solid fa-gear me-2"></i> Settings
             </div>
-            <div class="history-item">
-                <i class="fa-solid fa-circle-user me-2"></i> Domino AI
+            <div class="user-profile-wrapper mt-1">
+                <div class="dropdown">
+                    <div class="history-item dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-circle-user me-2"></i> <span class="flex-grow-1 text-truncate"><?= esc(auth()->user()->username ?? 'Domino AI') ?></span>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow" style="width: 240px;">
+                        <li><h6 class="dropdown-header px-3 text-truncate"><?= esc(auth()->user()->email ?? 'Account') ?></h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="json"><i class="fa-solid fa-file-code me-2"></i> Export as JSON</a></li>
+                        <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="xml"><i class="fa-solid fa-code me-2"></i> Export as XML</a></li>
+                        <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="yaml"><i class="fa-solid fa-file-lines me-2"></i> Export as YAML</a></li>
+                        <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="pdf"><i class="fa-solid fa-file-pdf me-2"></i> Export as PDF</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2 text-danger" href="<?= url_to('logout') ?>"><i class="fa-solid fa-right-from-bracket me-2"></i> Logout</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

@@ -146,6 +146,11 @@ $(document).ready(function() {
 
     loadSidebarConversations();
 
+    // Check if unique URL ID was passed
+    if (window.serverData && window.serverData.chatUuid) {
+        loadConversation(window.serverData.chatUuid);
+    }
+
     $(document).on('click', '.sidebar-chat-title', function() {
         const id = $(this).closest('.history-item').data('id');
         loadConversation(id);
@@ -516,4 +521,222 @@ $(document).ready(function() {
     $('.toggle-sidebar').on('click', function() {
         $('#sidebar').toggleClass('collapsed');
     });
+
+    // --- All History Modal Logic ---
+    let historyPage = 1;
+    let historySearch = '';
+
+    $('#allHistoryModal').on('show.bs.modal', function() {
+        historyPage = 1;
+        $('#historySearchInput').val('');
+        historySearch = '';
+        loadPaginatedHistory();
+    });
+
+    $('#historySearchInput').on('input', function() {
+        historySearch = $(this).val();
+        historyPage = 1; // reset page when searching
+        if (window.historySearchTimer) clearTimeout(window.historySearchTimer);
+        window.historySearchTimer = setTimeout(loadPaginatedHistory, 300);
+    });
+
+    $('#historyPrevBtn').on('click', function() {
+        if (historyPage > 1) { historyPage--; loadPaginatedHistory(); }
+    });
+
+    $('#historyNextBtn').on('click', function() {
+        historyPage++; loadPaginatedHistory();
+    });
+
+    function loadPaginatedHistory() {
+        $('#allHistoryList').html('<div class="text-center text-muted my-4"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>');
+        $.getJSON(`/api/conversations/paginated?page=${historyPage}&search=${encodeURIComponent(historySearch)}`, function(res) {
+            $('#allHistoryList').empty();
+            if (!res.data || res.data.length === 0) {
+                $('#allHistoryList').html('<div class="text-center text-muted my-4">No conversations found.</div>');
+                $('#historyPageInfo').text('Page 0 of 0');
+                $('#historyPrevBtn').prop('disabled', true);
+                $('#historyNextBtn').prop('disabled', true);
+                return;
+            }
+            
+            res.data.forEach(function(conv) {
+                const dateOptions = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const dateStr = new Date(conv.updated_at).toLocaleDateString('en-GB', dateOptions);
+                const models = conv.models ? conv.models.split(',').join(' • ') : 'No AI interaction';
+                const url = window.location.origin + '/c/' + conv.uuid;
+
+                // Create unique URL link
+                $('#allHistoryList').append(`
+                    <div class="card shadow-sm border border-secondary border-opacity-10 rounded-3 mb-2">
+                        <div class="card-body p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <h6 class="mb-1 text-truncate">
+                                    <a href="${url}" class="text-decoration-none text-body fw-bold">${escapeHtml(conv.title || 'New Chat')}</a>
+                                </h6>
+                                <div class="text-muted small d-flex flex-wrap gap-3">
+                                    <span><i class="fa-regular fa-clock me-1"></i> ${dateStr}</span>
+                                    <span><i class="fa-solid fa-microchip me-1"></i> ${escapeHtml(models)}</span>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 flex-shrink-0">
+                                <a href="${url}" class="btn btn-sm btn-primary rounded-pill px-3">Open</a>
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copyUniqueUrl('${url}', this)"><i class="fa-solid fa-link"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+
+            $('#historyPageInfo').text(`Page ${res.page} of ${res.pages}`);
+            $('#historyPrevBtn').prop('disabled', res.page <= 1);
+            $('#historyNextBtn').prop('disabled', res.page >= res.pages);
+        });
+    }
+
+    window.copyUniqueUrl = function(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+            const $btn = $(btn);
+            const originalHtml = $btn.html();
+            $btn.html('<i class="fa-solid fa-check"></i>');
+            $btn.addClass('text-success border-success');
+            setTimeout(() => {
+                $btn.html(originalHtml);
+                $btn.removeClass('text-success border-success');
+            }, 2000);
+        });
+    }
+
+    // --- Export Logic ---
+    $(document).on('click', '.export-chat-btn', function(e) {
+        e.preventDefault();
+        // Fallback for new empty chat if no ID yet
+        if (!currentConversationId) {
+            alert('Please select or start a conversation first.');
+            return;
+        }
+
+        const format = $(this).data('format');
+        const $icon = $(this).find('i').first();
+        const originalIconClass = $icon.attr('class');
+        $icon.attr('class', 'fa-solid fa-circle-notch fa-spin me-2 opacity-50');
+
+        $.getJSON(`/api/conversations/${currentConversationId}`, function(data) {
+            const title = (data.title && data.title !== 'New Chat') ? data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'chat_export';
+            const filename = `${title}_${new Date().toISOString().slice(0,10)}`;
+
+            if (format === 'json') {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                downloadBlob(blob, `${filename}.json`);
+                restoreIcon();
+            } else if (format === 'yaml') {
+                if (typeof jsyaml === 'undefined') {
+                    alert('YAML generation library is loading. Please try again.');
+                    restoreIcon();
+                    return;
+                }
+                const yamlStr = jsyaml.dump(data);
+                const blob = new Blob([yamlStr], { type: 'text/yaml' });
+                downloadBlob(blob, `${filename}.yaml`);
+                restoreIcon();
+            } else if (format === 'xml') {
+                let xmlStr = `<?xml version="1.0" encoding="UTF-8"?>\n<conversation>\n`;
+                xmlStr += `  <title>${escapeXml(data.title || 'New Chat')}</title>\n`;
+                xmlStr += `  <uuid>${escapeXml(data.uuid || '')}</uuid>\n`;
+                xmlStr += `  <created_at>${escapeXml(data.created_at || '')}</created_at>\n`;
+                xmlStr += `  <messages>\n`;
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        xmlStr += `    <message>\n`;
+                        xmlStr += `      <role>${escapeXml(msg.role)}</role>\n`;
+                        if (msg.model_name) xmlStr += `      <model_name>${escapeXml(msg.model_name)}</model_name>\n`;
+                        xmlStr += `      <content>${escapeXml(msg.content)}</content>\n`;
+                        xmlStr += `      <created_at>${escapeXml(msg.created_at || '')}</created_at>\n`;
+                        xmlStr += `    </message>\n`;
+                    });
+                }
+                xmlStr += `  </messages>\n</conversation>`;
+                const blob = new Blob([xmlStr], { type: 'application/xml' });
+                downloadBlob(blob, `${filename}.xml`);
+                restoreIcon();
+            } else if (format === 'pdf') {
+                if (typeof html2pdf === 'undefined') {
+                    alert('PDF generation library is loading. Please try again in a moment.');
+                    restoreIcon();
+                    return;
+                }
+                
+                const element = document.createElement('div');
+                element.style.padding = '20px';
+                element.style.fontFamily = 'Arial, sans-serif';
+                element.style.color = '#333';
+                element.style.lineHeight = '1.6';
+                
+                let html = `<h2 style="margin-bottom:20px; font-weight:bold; border-bottom:1px solid #ddd; padding-bottom:10px;">${escapeHtml(data.title || 'Conversation')}</h2>`;
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        const sender = msg.role === 'user' ? '<b>User</b>' : `<b>${escapeHtml(msg.model_name || 'AI')}</b>`;
+                        html += `<div style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px; background: ${msg.role === 'user' ? '#fdfdfd' : '#f4fbff'}; page-break-inside: avoid;">`;
+                        html += `<div style="margin-bottom: 10px; font-size: 0.9em; color: #555;">${sender}</div>`;
+                        // parse markdown but apply some reset styles so it looks ok without Bootstrap
+                        let parsed = marked.parse(msg.content);
+                        parsed = parsed.replace(/<pre>/g, '<pre style="background:#2d2d2d; color:#ccc; padding:15px; border-radius:5px; overflow-x:auto;">');
+                        parsed = parsed.replace(/<code>/g, '<code style="font-family:monospace; background:rgba(0,0,0,0.05); padding:2px 4px; border-radius:3px;">');
+                        html += `<div>${parsed}</div>`;
+                        html += `</div>`;
+                    });
+                } else {
+                    html += '<p>No messages.</p>';
+                }
+                element.innerHTML = html;
+                
+                const opt = {
+                    margin:       10,
+                    filename:     `${filename}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    restoreIcon();
+                }).catch(err => {
+                    console.error("PDF generation failed", err);
+                    alert("Failed to generate PDF. Check console.");
+                    restoreIcon();
+                });
+            }
+
+            function restoreIcon() {
+                $icon.attr('class', originalIconClass);
+            }
+        }).fail(function() {
+            alert('Failed to fetch conversation data for export.');
+            $icon.attr('class', originalIconClass);
+        });
+    });
+
+    function downloadBlob(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    }
+    
+    function escapeXml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe.toString().replace(/[<>&'"]/g, function (c) {
+            switch (c) {
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '&': return '&amp;';
+                case '\'': return '&apos;';
+                case '"': return '&quot;';
+            }
+        });
+    }
 });

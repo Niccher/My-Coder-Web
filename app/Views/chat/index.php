@@ -14,6 +14,11 @@
             <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="fa-solid fa-user-gear opacity-50"></i> View Profile</a></li>
             <li><button class="dropdown-item d-flex align-items-center gap-2" type="button" id="openSettingsDropdown"><i class="fa-solid fa-gear opacity-50"></i> Settings</button></li>
             <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="json"><i class="fa-solid fa-file-code opacity-50"></i> Export as JSON</a></li>
+            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="xml"><i class="fa-solid fa-code opacity-50"></i> Export as XML</a></li>
+            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="yaml"><i class="fa-solid fa-file-lines opacity-50"></i> Export as YAML</a></li>
+            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="pdf"><i class="fa-solid fa-file-pdf opacity-50"></i> Export as PDF</a></li>
+            <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="<?= url_to('logout') ?>"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
     </div>
@@ -403,9 +408,43 @@
     </div>
 </div>
 
+<!-- All History Modal -->
+<div class="modal fade" id="allHistoryModal" tabindex="-1" aria-labelledby="allHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
+                <h5 class="modal-title fw-bold" id="allHistoryModalLabel">
+                    <i class="fa-solid fa-clock-rotate-left me-2 opacity-50"></i>All History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden border border-secondary border-opacity-25 bg-body-tertiary">
+                    <span class="input-group-text bg-transparent border-0 ps-3 text-muted"><i class="fa-solid fa-search"></i></span>
+                    <input type="text" id="historySearchInput" class="form-control border-0 bg-transparent shadow-none" placeholder="Search conversations...">
+                </div>
+                <div id="allHistoryList" class="d-flex flex-column gap-2" style="min-height: 200px;">
+                    <!-- Loaded via JS -->
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <button id="historyPrevBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="fa-solid fa-chevron-left me-1"></i> Prev</button>
+                    <span id="historyPageInfo" class="text-muted small">Page 1 of 1</span>
+                    <button id="historyNextBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Next <i class="fa-solid fa-chevron-right ms-1"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?= $this->endSection()?>
 
 <?= $this->section('scripts') ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script>
+window.serverData = { chatUuid: '<?= esc($chatUuid ?? '') ?>' };
+</script>
 <script>
 // ────────────────────────────────────────────────────────────
 // Settings Modal — Model Configuration
