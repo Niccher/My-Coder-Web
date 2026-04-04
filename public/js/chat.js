@@ -3,6 +3,9 @@ $(document).ready(function() {
     const $chatContainer = $('#chat-container');
     const $inputWrapper = $('#input-wrapper');
     const $filePreviewArea = $('#file-preview-area');
+    const $sidebar = $('#sidebar');
+    const $sidebarBackdrop = $('#sidebar-backdrop');
+    const $mobileSidebarToggle = $('#mobile-sidebar-toggle');
     let attachedFiles = [];
 
     // --- Marked.js & Prism Configuration ---
@@ -114,6 +117,90 @@ $(document).ready(function() {
 
     // Track the active conversation across messages
     let currentConversationId = null;
+    const $sidebarHistoryList = $('#sidebar-history-list');
+
+    function loadSidebarConversations() {
+        $.getJSON('/api/conversations', function(data) {
+            $sidebarHistoryList.find('.history-item, .no-chats').remove();
+
+            if (!data || data.length === 0) {
+                $sidebarHistoryList.append('<div class="px-3 py-2 text-muted no-chats" style="font-size: 0.85rem;">No recent chats.</div>');
+                return;
+            }
+
+            // Top 5
+            const recent = data.slice(0, 5);
+            recent.forEach(conv => {
+                const isActive = (conv.id == currentConversationId) ? 'bg-secondary bg-opacity-25' : '';
+                $sidebarHistoryList.append(`
+                    <div class="history-item d-flex justify-content-between align-items-center ${isActive}" data-id="${conv.id}">
+                        <span class="text-truncate flex-grow-1 sidebar-chat-title" style="cursor:pointer;" title="${escapeHtml(conv.title)}">${escapeHtml(conv.title || 'New Chat')}</span>
+                        <button class="btn btn-link text-danger p-0 ms-2 delete-chat-btn" data-id="${conv.id}" title="Delete chat">
+                            <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
+                        </button>
+                    </div>
+                `);
+            });
+        });
+    }
+
+    loadSidebarConversations();
+
+    $(document).on('click', '.sidebar-chat-title', function() {
+        const id = $(this).closest('.history-item').data('id');
+        loadConversation(id);
+    });
+
+    $(document).on('click', '.delete-chat-btn', function() {
+        const id = $(this).data('id');
+        if (!confirm('Delete this conversation?')) return;
+        $.ajax({
+            url: `/api/conversations/${id}`,
+            method: 'DELETE',
+            success: function() {
+                if (currentConversationId == id) {
+                    $('.new-chat-btn').click();
+                } else {
+                    loadSidebarConversations();
+                }
+            }
+        });
+    });
+
+    $('.new-chat-btn').on('click', function() {
+        currentConversationId = null;
+        $chatContainer.empty().append(`
+            <div id="greeting-box" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center pb-5 animate__animated animate__fadeIn">
+                <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">New Chat</h1>
+                <p class="lead text-muted">Select an AI model and start typing.</p>
+            </div>
+        `);
+        loadSidebarConversations();
+        if ($(window).width() <= 768) $sidebarBackdrop.click(); // auto-close sidebar
+    });
+
+    function loadConversation(id) {
+        $chatContainer.empty().append('<div class="text-center mt-5 text-muted"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i> Loading...</div>');
+        
+        $.getJSON(`/api/conversations/${id}`, function(data) {
+            currentConversationId = data.id;
+            $chatContainer.empty();
+            
+            if (!data.messages === undefined || data.messages.length === 0) {
+                $chatContainer.append('<div class="text-center mt-5 text-muted">No messages found.</div>');
+            } else {
+                data.messages.forEach(msg => {
+                    const aiTitle = (msg.role === 'ai') ? msg.model_name : null;
+                    appendMessage(msg.role, msg.content, aiTitle);
+                });
+            }
+            scrollToBottom();
+            loadSidebarConversations();
+            if ($(window).width() <= 768) $sidebarBackdrop.click();
+        }).fail(function() {
+            $chatContainer.empty().append('<div class="text-center mt-5 text-danger">Failed to load conversation.</div>');
+        });
+    }
 
     function sendMessage() {
         const message = $chatInput.val().trim();
@@ -133,16 +220,23 @@ $(document).ready(function() {
         appendMultiModelResponse(message, fileContext);
     }
 
-    function appendMessage(role, text) {
+    function appendMessage(role, text, customTitle = null) {
         const avatar = role === 'user' ? 'U' : 'AI';
         const timestampStr = getFullTimestamp();
-        const messageContent = role === 'ai' ? marked.parse(text) : escapeHtml(text);
+        let messageContent = text;
+        if (role === 'ai') {
+            messageContent = marked.parse(text);
+        } else {
+            messageContent = escapeHtml(text);
+        }
+
+        const titleHtml = customTitle ? `<div class="mb-2 fw-semibold text-primary"><i class="fa-solid fa-microchip me-1"></i> ${escapeHtml(customTitle)}</div>` : '';
         
         const messageHtml = `
             <div class="message ${role} animate__animated animate__fadeInUp">
                 <div class="avatar">${avatar}</div>
                 <div class="message-body">
-                    <div class="message-content">${messageContent}</div>
+                    <div class="message-content">${titleHtml}${messageContent}</div>
                     <div class="message-timestamp">${timestampStr}</div>
                 </div>
             </div>
@@ -201,7 +295,12 @@ $(document).ready(function() {
                 conversation_id: currentConversationId,
             }),
             success: function(data) {
+                const wasNew = !currentConversationId;
                 currentConversationId = data.conversation_id;
+
+                if (wasNew) {
+                    loadSidebarConversations(); // Refresh list to show the new chat dynamically
+                }
 
                 const models    = data.models || [];
                 const masterEval = data.master_eval;

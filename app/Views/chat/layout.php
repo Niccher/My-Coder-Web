@@ -35,11 +35,19 @@
 <body>
 
     <div class="d-flex" id="app-layout">
+        <!-- Sidebar Backdrop -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
         <!-- Sidebar -->
         <?= $this->include('chat/sidebar')?>
 
         <!-- Main Content -->
-        <main id="main-content">
+        <main id="main-content" class="position-relative">
+            <!-- Mobile Sidebar Toggle -->
+            <button class="btn btn-link d-md-none position-absolute top-0 start-0 mt-3 ms-3 text-themed" id="mobile-sidebar-toggle" style="z-index: 100;">
+                <i class="fa-solid fa-bars fs-4"></i>
+            </button>
+
             <?= $this->renderSection('content')?>
         </main>
     </div>

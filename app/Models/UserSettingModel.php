@@ -18,7 +18,23 @@ class UserSettingModel extends Model
     {
         $rows = $this->where('user_id', $userId)->orderBy('model_slot', 'ASC')->findAll();
         $settings = [];
+        $encrypter = clone \Config\Services::encrypter(); // safe copy
+
         foreach ($rows as $row) {
+            // Attempt to decrypt the API key
+            if (!empty($row['api_key'])) {
+                try {
+                    // We base64 encode/decode ciphertext to store safely in varchar/text
+                    $ciphertext = base64_decode($row['api_key']);
+                    if ($ciphertext !== false) {
+                        $decrypted = $encrypter->decrypt($ciphertext);
+                        $row['api_key'] = $decrypted;
+                    }
+                } catch (\Exception $e) {
+                    // Fallback: This key might be from before encryption was enabled
+                    // so we leave it as plain text.
+                }
+            }
             $settings[$row['model_slot']] = $row;
         }
         return $settings;
@@ -29,6 +45,12 @@ class UserSettingModel extends Model
      */
     public function saveSlot(int $userId, int $slot, array $data): void
     {
+        if (isset($data['api_key']) && $data['api_key'] !== '') {
+            $encrypter = \Config\Services::encrypter();
+            // Store as base64 to avoid binary truncation issues in DB
+            $data['api_key'] = base64_encode($encrypter->encrypt($data['api_key']));
+        }
+
         $existing = $this->where('user_id', $userId)->where('model_slot', $slot)->first();
         $data['user_id']    = $userId;
         $data['model_slot'] = $slot;

@@ -9,12 +9,9 @@
         </button>
     </div>
 
-    <div class="history-list flex-grow-1">
+    <div class="history-list flex-grow-1" id="sidebar-history-list">
         <div class="section-header">Recent</div>
-        <div class="history-item">How to use CodeIgniter 4</div>
-        <div class="history-item">Modern UI Design Patterns</div>
-        <div class="history-item">Bootstrap 5 vs Tailwind</div>
-        <div class="history-item">AI Chat Implementation</div>
+        <!-- Dynamically populated via JS -->
     </div>
 
     <div class="sidebar-footer border-top border-secondary-subtle">
