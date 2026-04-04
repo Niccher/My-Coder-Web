@@ -7,6 +7,18 @@ use CodeIgniter\Router\RouteCollection;
  */
 $routes->get('/', 'Chat::index', ['filter' => 'session']);
 
+// API routes — all require session auth
+$routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Api'], static function ($routes) {
+    $routes->post('chat', 'ChatController::send');
+
+    $routes->get('settings', 'SettingsController::index');
+    $routes->post('settings', 'SettingsController::save');
+
+    $routes->get('conversations', 'ConversationsController::index');
+    $routes->get('conversations/(:num)', 'ConversationsController::show/$1');
+    $routes->delete('conversations/(:num)', 'ConversationsController::delete/$1');
+});
+
 $routes->group('', ['namespace' => '\CodeIgniter\Shield\Controllers'], static function ($routes) {
     $routes->get('register', 'RegisterController::registerView', ['as' => 'register']);
     $routes->post('register', 'RegisterController::registerAction');

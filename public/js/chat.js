@@ -112,24 +112,25 @@ $(document).ready(function() {
         }
     });
 
+    // Track the active conversation across messages
+    let currentConversationId = null;
+
     function sendMessage() {
         const message = $chatInput.val().trim();
         if (message === '' && attachedFiles.length === 0) return;
 
         appendMessage('user', message);
         $chatInput.val('').css('height', 'auto');
+
+        // Collect file context
+        const fileContext = attachedFiles.map(f => `=== ${f.name} ===\n${f.content || ''}`).join('\n\n');
         clearFiles();
 
         if ($('#greeting-box').length) {
-            $('#greeting-box').fadeOut(300, function() {
-                $(this).remove();
-            });
+            $('#greeting-box').fadeOut(300, function() { $(this).remove(); });
         }
 
-        // Simulate multi-model response after a delay
-        setTimeout(() => {
-            appendMultiModelResponse(message);
-        }, 600);
+        appendMultiModelResponse(message, fileContext);
     }
 
     function appendMessage(role, text) {
@@ -150,10 +151,20 @@ $(document).ready(function() {
         scrollToBottom();
     }
 
-    function appendMultiModelResponse(userPrompt) {
+    // Icon map for known providers
+    const providerIcons = {
+        gemini:   'fa-microchip',
+        deepseek: 'fa-brain',
+        grok:     'fa-bolt',
+        openai:   'fa-robot',
+    };
+    const kanbanClasses = ['kanban-bg-primary', 'kanban-bg-success', 'kanban-bg-info'];
+
+    function appendMultiModelResponse(userPrompt, fileContext) {
         const timestampStr = getFullTimestamp();
-        const messageId = 'multi-' + Date.now();
-        
+        const messageId    = 'multi-' + Date.now();
+
+        // Show 3-column skeleton loader while API is in-flight
         const skeletonHtml = `
             <div id="${messageId}" class="message ai multi-model-response animate__animated animate__fadeInUp w-100 pe-md-5">
                 <div class="avatar"><i class="fa-solid fa-layer-group"></i></div>
@@ -171,52 +182,91 @@ $(document).ready(function() {
                             </div>
                         </div>`).join('')}
                     </div>
+                    <div class="text-muted small ps-1"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Awaiting AI responses…</div>
                 </div>
             </div>
         `;
         $chatContainer.append(skeletonHtml);
         scrollToBottom();
 
-        const modelResponses = [
-            { name: 'Gemini 1.5', icon: 'fa-microchip', class: 'kanban-bg-primary', text: 'To sort an array in **PHP**, use `sort()`:\n\n```php\n$arr = [3, 1, 2];\nsort($arr);\n```' },
-            { name: 'DeepSeek R1', icon: 'fa-brain', class: 'kanban-bg-success', text: 'In **Python**, use `.sort()` for in-place sorting:\n\n```python\nnums = [3, 1, 2]\nnums.sort()\n```' },
-            { name: 'Grok-2', icon: 'fa-bolt', class: 'kanban-bg-info', text: 'For **JavaScript**, use `.sort()` with a compare function:\n\n```javascript\n[3, 1, 2].sort((a,b) => a-b);\n```' }
-        ];
+        // POST to real backend
+        $.ajax({
+            url: '/api/chat',
+            method: 'POST',
+            contentType: 'application/json',
+            timeout: 300000, // 5 minutes
+            data: JSON.stringify({
+                prompt:          userPrompt,
+                file_context:    fileContext,
+                conversation_id: currentConversationId,
+            }),
+            success: function(data) {
+                currentConversationId = data.conversation_id;
 
-        setTimeout(() => {
-            $(`#${messageId} .message-body`).html(`
-                <div class="row g-2 kanban-container mb-3">
-                    ${modelResponses.map((model, idx) => `
+                const models    = data.models || [];
+                const masterEval = data.master_eval;
+                const masterName = data.master_model_name || 'Master Evaluation';
+
+                // Build kanban columns from real responses
+                const kanbanCols = models.map((model, idx) => {
+                    const icon      = providerIcons[model.provider] || 'fa-microchip';
+                    const className = kanbanClasses[idx] || 'kanban-bg-primary';
+                    return `
                         <div class="col-md-4">
-                            <div class="kanban-card ${model.class}" id="${messageId}_col_${idx}">
-                                <div class="kanban-header border-opacity-25"><i class="fa-solid ${model.icon} me-1"></i> ${model.name}</div>
+                            <div class="kanban-card ${className}" id="${messageId}_col_${idx}">
+                                <div class="kanban-header border-opacity-25">
+                                    <i class="fa-solid ${icon} me-1"></i> ${escapeHtml(model.model_name)}
+                                    ${model.error ? '<span class="badge bg-danger ms-2">Error</span>' : ''}
+                                </div>
                                 <div class="kanban-body markdown-body">
                                     <span class="streaming-content"></span><span class="typing-cursor"></span>
                                 </div>
                             </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="master-evaluation-card mb-2 shadow-sm" style="display:none;">
-                    <div class="kanban-header text-danger bg-danger bg-opacity-10">
-                        <i class="fa-solid fa-star me-1"></i> Master Evaluation (GPT-4o)
-                    </div>
-                    <div class="kanban-body markdown-body">
-                        <span class="streaming-content"></span><span class="typing-cursor"></span>
-                    </div>
-                </div>
-                <div class="message-timestamp">${timestampStr}</div>
-            `);
+                        </div>`;
+                }).join('');
 
-            let count = 0;
-            modelResponses.forEach((model, idx) => {
-                streamText($(`#${messageId}_col_${idx} .streaming-content`), model.text, () => {
-                    $(`#${messageId}_col_${idx} .typing-cursor`).remove();
-                    count++;
-                    if (count === 3) showMasterEval(messageId);
+                $(`#${messageId} .message-body`).html(`
+                    <div class="row g-2 kanban-container mb-3">${kanbanCols}</div>
+                    <div class="master-evaluation-card mb-2 shadow-sm" style="display:none;">
+                        <div class="kanban-header text-danger bg-danger bg-opacity-10">
+                            <i class="fa-solid fa-star me-1"></i> ${escapeHtml(masterName)}
+                        </div>
+                        <div class="kanban-body markdown-body">
+                            <span class="streaming-content"></span><span class="typing-cursor"></span>
+                        </div>
+                    </div>
+                    <div class="message-timestamp">${timestampStr}</div>
+                `);
+
+                // Stream each model response into its column
+                let doneCount = 0;
+                models.forEach((model, idx) => {
+                    const text = model.error
+                        ? `⚠️ **Error:** ${model.error}`
+                        : (model.content || '*(No response)*');
+
+                    streamText($(`#${messageId}_col_${idx} .streaming-content`), text, () => {
+                        $(`#${messageId}_col_${idx} .typing-cursor`).remove();
+                        doneCount++;
+                        // Show master eval only after all models complete
+                        if (doneCount === models.length && masterEval) {
+                            showMasterEval(messageId, masterEval);
+                        }
+                    });
                 });
-            });
-        }, 1500);
+
+                // If backend returned no master eval (e.g. not configured), keep it hidden
+            },
+            error: function(xhr) {
+                const errMsg = xhr.responseJSON?.messages?.error || xhr.responseJSON?.message || 'Failed to contact the AI backend.';
+                $(`#${messageId} .message-body`).html(`
+                    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div>${escapeHtml(errMsg)}</div>
+                    </div>
+                `);
+            }
+        });
     }
 
     function streamText($el, text, callback) {
@@ -235,10 +285,9 @@ $(document).ready(function() {
         }, 60);
     }
 
-    function showMasterEval(messageId) {
+    function showMasterEval(messageId, text) {
         const $master = $(`#${messageId} .master-evaluation-card`);
         $master.show().addClass('animate__animated animate__fadeInUp');
-        const text = "All three models provided accurate examples. **DeepSeek R1**'s explanation of Timsort is particularly useful for production performance.";
         streamText($master.find('.streaming-content'), text, () => {
             $master.find('.typing-cursor').remove();
         });

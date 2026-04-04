@@ -24,6 +24,13 @@ class Database extends Config
      *
      * @var array<string, mixed>
      */
+//    public array $default = [
+//        'DSN'          => '',
+//        'hostname'     => 'localhost',
+//        'username'     => 'chegecac_my_coder_usr',
+//        'password'     => '0c3AIlz_bP6A',
+//        'database'     => 'chegecac_my_coder',
+//        'DBDriver'     => 'MySQLi',
     public array $default = [
         'DSN'          => '',
         'hostname'     => '127.0.0.1',

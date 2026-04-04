@@ -235,65 +235,96 @@
                         <!-- ── Models & Tokens ───────────────────── -->
                         <div class="tab-pane fade" id="sp-models">
                             <h6 class="settings-heading">Simultaneous Models</h6>
-                            <p class="settings-desc">Configure up to 3 AI models to run side-by-side.</p>
+                            <p class="settings-desc">Configure up to 3 AI models to run side-by-side. The <strong>Master Model</strong> (slot 4) evaluates which response is best.</p>
 
-                            <div class="model-card mb-3">
-                                <div class="model-badge bg-primary">1</div>
-                                <div class="flex-grow-1">
-                                    <div class="row g-2">
-                                        <div class="col-md-5">
-                                            <select class="form-select form-select-sm">
-                                                <option selected>Gemini 1.5 Pro</option>
-                                                <option>GPT-4o</option>
-                                                <option>Claude 3.5 Sonnet</option>
-                                                <option>DeepSeek R1</option>
-                                                <option>Grok-2</option>
-                                                <option>Llama 3.1</option>
-                                                <option>Mistral Large</option>
-                                            </select>
+                            <div id="model-save-status" class="mb-3" style="display:none;"></div>
+
+                            <?php
+                            $slots = [
+                                ['slot' => 1, 'badge' => 'bg-primary',         'label' => 'Model 1'],
+                                ['slot' => 2, 'badge' => 'bg-success',         'label' => 'Model 2'],
+                                ['slot' => 3, 'badge' => 'bg-warning text-dark','label' => 'Model 3'],
+                                ['slot' => 4, 'badge' => 'bg-danger',           'label' => 'Master ★'],
+                            ];
+                            $providerOptions = [
+                                'openai'     => 'OpenAI',
+                                'deepseek'   => 'DeepSeek',
+                                'kimi'       => 'Kimi (Moonshot)',
+                                'minimax'    => 'MiniMax',
+                                'gemini'     => 'Google Gemini',
+                                'grok'       => 'Grok (xAI)',
+                                'groq'       => 'Groq (Fast Open-Source)',
+                                'openrouter' => 'OpenRouter (Free Models)',
+                            ];
+                            $modelOptions = [
+                                'openai'    => ['GPT-4o', 'GPT-4o Mini', 'GPT-4 Turbo', 'o1', 'o3 Mini'],
+                                'deepseek'  => ['DeepSeek R1', 'DeepSeek V3'],
+                                'kimi'      => ['Kimi k1.5', 'moonshot-v1-8k', 'moonshot-v1-32k'],
+                                'minimax'   => ['MiniMax-Text-01', 'abab6.5s-chat'],
+                                'gemini'    => ['Gemini 2.0 Flash', 'Gemini 2.0 Pro', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'],
+                                'grok'      => ['Grok-3', 'Grok-2', 'Grok-2 Mini'],
+                                'groq'      => ['Llama 3.3 70B Versatile', 'Llama 3.1 8B Instant', 'Qwen3 32B', 'Grok Compound'],
+                                'openrouter'=> ['Llama 3.3 70B (Free)', 'Llama 3.2 3B (Free)', 'Gemma 3 27B (Free)', 'Gemma 3 12B (Free)'],
+                            ];
+                            ?>
+
+                            <?php foreach ($slots as $s) : ?>
+                            <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm mb-3 rounded-4 overflow-hidden">
+                                <!-- Top Row: Icon + Provider (FlexRow) -->
+                                <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-2 px-3 d-flex align-items-center gap-3">
+                                    <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white" id="provider_icon_<?= $s['slot'] ?>" style="width:36px;height:36px;font-size:0.75rem;flex-shrink:0;background:#6c757d;transition:background 0.3s;">
+                                        <?= $s['slot'] == 4 ? '<i class="fa-solid fa-star"></i>' : $s['slot'] ?>
+                                    </div>
+                                    <select class="form-select border-0 bg-transparent fw-semibold shadow-none model-provider p-0 text-body fs-6" data-slot="<?= $s['slot'] ?>" id="model_provider_<?= $s['slot'] ?>" style="cursor:pointer;">
+                                        <option value="">-- Select Provider --</option>
+                                        <?php foreach ($providerOptions as $val => $label) : ?>
+                                            <option value="<?= $val ?>"><?= $label ?></option>
+                                        <?php endforeach ?>
+                                    </select>
+                                </div>
+
+                                <!-- Rows Below: Stacked Model & Token -->
+                                <div class="card-body px-3 py-3 ps-5">
+                                    <div class="d-flex flex-column gap-2 border-start border-2 border-secondary border-opacity-25 ps-3 py-1 ms-1">
+                                        <!-- Model Select -->
+                                        <select class="form-select form-select-sm model-name bg-body" data-slot="<?= $s['slot'] ?>" id="model_name_<?= $s['slot'] ?>">
+                                            <option value="">-- Select Model --</option>
+                                        </select>
+                                        
+                                        <!-- API Key Input -->
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-body border-end-0 text-muted"><i class="fa-solid fa-key"></i></span>
+                                            <input type="password" 
+                                                class="form-control model-apikey border-start-0 ps-0 bg-body" 
+                                                data-slot="<?= $s['slot'] ?>" 
+                                                id="model_apikey_<?= $s['slot'] ?>" 
+                                                placeholder="API Key / Token" 
+                                                autocomplete="off">
                                         </div>
-                                        <div class="col-md-7">
-                                            <input type="password" class="form-control form-control-sm" placeholder="API Key / Token">
-                                        </div>
+                                    </div>
+
+                                    <!-- Status Message -->
+                                    <div class="mt-2 ps-3 ms-1">
+                                        <small class="text-muted model-key-status" id="model_status_<?= $s['slot'] ?>"></small>
                                     </div>
                                 </div>
                             </div>
+                            <?php endforeach ?>
 
-                            <div class="model-card mb-3">
-                                <div class="model-badge bg-success">2</div>
-                                <div class="flex-grow-1">
-                                    <div class="row g-2">
-                                        <div class="col-md-5">
-                                            <select class="form-select form-select-sm">
-                                                <option selected>DeepSeek R1</option>
-                                                <option>Claude 3.5 Sonnet</option>
-                                                <option>GPT-4o mini</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <input type="password" class="form-control form-control-sm" placeholder="API Key / Token">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="model-card mb-3">
-                                <div class="model-badge bg-warning text-dark">3</div>
-                                <div class="flex-grow-1">
-                                    <div class="row g-2">
-                                        <div class="col-md-5">
-                                            <select class="form-select form-select-sm">
-                                                <option selected>Grok-2</option>
-                                                <option>Mistral Large</option>
-                                                <option>Llama 3.1</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <input type="password" class="form-control form-control-sm" placeholder="API Key / Token">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Inline JS: provider meta + model options for JS -->
+                            <script>
+                            window.mcModelOptions = <?= json_encode($modelOptions) ?>;
+                            window.mcProviderMeta = {
+                                openai:     { label: 'OpenAI',          initials: 'AI',  bg: '#10a37f' },
+                                deepseek:   { label: 'DeepSeek',        initials: 'DS',  bg: '#1a73e8' },
+                                kimi:       { label: 'Kimi',            initials: 'K',   bg: '#7b2ff7' },
+                                minimax:    { label: 'MiniMax',         initials: 'MM',  bg: '#ff6b35' },
+                                gemini:     { label: 'Google Gemini',   initials: 'G',   bg: '#4285f4' },
+                                grok:       { label: 'Grok (xAI)',      initials: 'X',   bg: '#000000' },
+                                groq:       { label: 'Groq',            initials: 'GQ',  bg: '#f55036' },
+                                openrouter: { label: 'OpenRouter',      initials: 'OR',  bg: '#2563eb' },
+                            };
+                            </script>
                         </div>
 
                     </div>
@@ -303,7 +334,7 @@
             <!-- Footer -->
             <div class="modal-footer px-4 py-3 border-top border-secondary-subtle">
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary rounded-pill px-4">
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="settings-save-btn">
                     <i class="fa-solid fa-check me-1"></i> Save
                 </button>
             </div>
@@ -318,74 +349,54 @@
         <div class="modal-content settings-modal border-0 shadow-lg" style="max-height: 85vh;">
             <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
                 <h5 class="modal-title fw-bold" id="modelSelectionModalLabel">
-                    <i class="fa-solid fa-layer-group me-2 opacity-50"></i>Model Selection
+                    <i class="fa-solid fa-layer-group me-2 opacity-50"></i>Active Models
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body p-4" style="overflow-y: auto;">
-                <p class="text-muted small mb-4">Choose three primary models to query simultaneously, and one master
-                    model to evaluate their responses.</p>
+                <p class="text-muted small mb-4">Showing the models currently configured in Settings. To change them, open <strong>Settings → Models</strong>.</p>
 
-                <h6 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-microchip me-2"></i>Primary Models</h6>
-
-                <!-- Primary Model 1 -->
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Model 1</label>
-                    <select class="form-select bg-themed border-secondary-subtle">
-                        <option selected="">Gemini 1.5</option>
-                        <option>GPT-4o</option>
-                        <option>Claude 3.5 Sonnet</option>
-                        <option>DeepSeek R1</option>
-                        <option>Grok-2</option>
-                    </select>
+                <?php
+                $quickSlots = [
+                    ['slot' => 1, 'label' => 'Primary Model 1', 'badge_class' => 'bg-primary'],
+                    ['slot' => 2, 'label' => 'Primary Model 2', 'badge_class' => 'bg-success'],
+                    ['slot' => 3, 'label' => 'Primary Model 3', 'badge_class' => 'bg-info text-dark'],
+                    ['slot' => 4, 'label' => 'Master Model ★',  'badge_class' => 'bg-danger'],
+                ];
+                foreach ($quickSlots as $qs): ?>
+                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded-3 bg-body-tertiary border border-secondary border-opacity-10">
+                    <!-- Provider Icon -->
+                    <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white flex-shrink-0"
+                         id="quick_icon_<?= $qs['slot'] ?>"
+                         style="width:38px;height:38px;font-size:0.75rem;background:#6c757d;transition:background 0.3s;">
+                        <?= $qs['slot'] == 4 ? '<i class="fa-solid fa-star"></i>' : $qs['slot'] ?>
+                    </div>
+                    <!-- Labels + Selects -->
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge <?= $qs['badge_class'] ?> rounded-pill" style="font-size:0.65rem;"><?= $qs['label'] ?></span>
+                        </div>
+                        <select class="form-select form-select-sm bg-body border-secondary-subtle quick-provider-select mb-1"
+                                data-slot="<?= $qs['slot'] ?>" id="quick_provider_<?= $qs['slot'] ?>">
+                            <option value="">-- Provider --</option>
+                            <?php foreach ($providerOptions as $val => $lbl): ?>
+                            <option value="<?= $val ?>"><?= $lbl ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select class="form-select form-select-sm bg-body border-secondary-subtle quick-model-select"
+                                data-slot="<?= $qs['slot'] ?>" id="quick_model_<?= $qs['slot'] ?>">
+                            <option value="">-- Model --</option>
+                        </select>
+                    </div>
                 </div>
-
-                <!-- Primary Model 2 -->
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Model 2</label>
-                    <select class="form-select bg-themed border-secondary-subtle">
-                        <option>Gemini 1.5</option>
-                        <option>GPT-4o</option>
-                        <option>Claude 3.5 Sonnet</option>
-                        <option selected="">DeepSeek R1</option>
-                        <option>Grok-2</option>
-                    </select>
-                </div>
-
-                <!-- Primary Model 3 -->
-                <div class="mb-4">
-                    <label class="form-label small fw-semibold">Model 3</label>
-                    <select class="form-select bg-themed border-secondary-subtle">
-                        <option>Gemini 1.5</option>
-                        <option>GPT-4o</option>
-                        <option>Claude 3.5 Sonnet</option>
-                        <option>DeepSeek R1</option>
-                        <option selected="">Grok-2</option>
-                    </select>
-                </div>
-
-                <hr class="border-secondary-subtle mb-4">
-
-                <h6 class="fw-bold mb-3 text-info"><i class="fa-solid fa-brain me-2"></i>Master Model</h6>
-                <p class="text-muted" style="font-size: 0.8rem;">The Master Model evaluates the three responses and
-                    selects the best one.</p>
-                <!-- Master Model -->
-                <div class="mb-3">
-                    <select class="form-select bg-themed border-info">
-                        <option>Gemini 1.5</option>
-                        <option selected="">GPT-4o</option>
-                        <option>Claude 3.5 Sonnet</option>
-                        <option>DeepSeek R1</option>
-                        <option>Grok-2</option>
-                    </select>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <div class="modal-footer px-4 py-3 border-top border-secondary-subtle bg-dark bg-opacity-10">
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary rounded-pill px-4">
-                    <i class="fa-solid fa-check me-1"></i> Apply Models
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="quick-model-save-btn">
+                    <i class="fa-solid fa-check me-1"></i> Apply & Save
                 </button>
             </div>
         </div>
@@ -393,3 +404,132 @@
 </div>
 
 <?= $this->endSection()?>
+
+<?= $this->section('scripts') ?>
+<script>
+// ────────────────────────────────────────────────────────────
+// Settings Modal — Model Configuration
+// ────────────────────────────────────────────────────────────
+
+$(document).ready(function () {
+
+    // Populate model-name dropdown AND update icon when provider changes
+    $(document).on('change', '.model-provider', function () {
+        const slot     = $(this).data('slot');
+        const provider = $(this).val();
+
+        // Update model list
+        const $nameEl  = $(`#model_name_${slot}`);
+        $nameEl.empty().append('<option value="">-- Select Model --</option>');
+        if (provider && window.mcModelOptions && window.mcModelOptions[provider]) {
+            window.mcModelOptions[provider].forEach(function (name) {
+                $nameEl.append(`<option value="${name}">${name}</option>`);
+            });
+        }
+
+        // Update provider icon badge
+        const $icon = $(`#provider_icon_${slot}`);
+        const meta  = window.mcProviderMeta && window.mcProviderMeta[provider];
+        if (meta) {
+            $icon.css('background', meta.bg).html(`<span>${meta.initials}</span>`);
+        } else {
+            $icon.css('background', '#6c757d').html(slot == 4 ? '<i class="fa-solid fa-star"></i>' : slot);
+        }
+    });
+
+    // Load saved settings when Settings modal opens on Models tab
+    $('#settingsModal').on('shown.bs.modal.settings', function () {
+        loadModelSettings();
+    });
+
+    // Also load on page init (so values are pre-filled if modal was opened before)
+    loadModelSettings();
+
+    function loadModelSettings() {
+        $.getJSON('/api/settings', function (data) {
+            $.each(data, function (slot, s) {
+                slot = parseInt(slot);
+                // -- Settings modal --
+                $(`#model_provider_${slot}`).val(s.provider || '').trigger('change');
+                setTimeout(function () {
+                    $(`#model_name_${slot}`).val(s.model_name || '');
+                }, 50);
+                const $status = $(`#model_status_${slot}`);
+                if (s.has_key) {
+                    $status.html('<i class="fa-solid fa-key me-1 text-success"></i>Key saved <span class="text-muted">' + (s.api_key || '') + '</span>');
+                } else {
+                    $status.text('');
+                }
+
+                // -- Quick modal (mirrored) --
+                $(`#quick_provider_${slot}`).val(s.provider || '').trigger('change.quick');
+                setTimeout(function () {
+                    $(`#quick_model_${slot}`).val(s.model_name || '');
+                }, 60);
+            });
+        });
+    }
+
+    // Quick modal: cascade provider → model
+    $(document).on('change.quick', '.quick-provider-select', function () {
+        const slot     = $(this).data('slot');
+        const provider = $(this).val();
+
+        const $modelEl = $(`#quick_model_${slot}`);
+        $modelEl.empty().append('<option value="">-- Model --</option>');
+        if (provider && window.mcModelOptions && window.mcModelOptions[provider]) {
+            window.mcModelOptions[provider].forEach(function (name) {
+                $modelEl.append(`<option value="${name}">${name}</option>`);
+            });
+        }
+
+        // Update icon
+        const $icon = $(`#quick_icon_${slot}`);
+        const meta  = window.mcProviderMeta && window.mcProviderMeta[provider];
+        if (meta) {
+            $icon.css('background', meta.bg).html(`<span>${meta.initials}</span>`);
+        } else {
+            $icon.css('background', '#6c757d').html(slot == 4 ? '<i class="fa-solid fa-star"></i>' : slot);
+        }
+    });
+
+    // Save settings
+    $('#settings-save-btn').on('click', function () {
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Saving…');
+
+        const slots = [];
+        for (let i = 1; i <= 4; i++) {
+            slots.push({
+                slot:       i,
+                provider:   $(`#model_provider_${i}`).val() || '',
+                model_name: $(`#model_name_${i}`).val() || '',
+                api_key:    $(`#model_apikey_${i}`).val() || '',
+            });
+        }
+
+        $.ajax({
+            url:         '/api/settings',
+            method:      'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify({ slots }),
+            success: function () {
+                // Clear key inputs after saving, reload statuses
+                for (let i = 1; i <= 4; i++) $(`#model_apikey_${i}`).val('');
+                loadModelSettings();
+                const $status = $('#model-save-status');
+                $status.show().html('<div class="alert alert-success py-2 mb-0"><i class="fa-solid fa-check-circle me-1"></i> Settings saved successfully.</div>');
+                setTimeout(() => $status.fadeOut(), 3500);
+            },
+            error: function (xhr) {
+                const msg = xhr.responseJSON?.message || 'Failed to save settings.';
+                $('#model-save-status').show().html(`<div class="alert alert-danger py-2 mb-0">${msg}</div>`);
+            },
+            complete: function () {
+                $btn.prop('disabled', false).html('<i class="fa-solid fa-check me-1"></i> Save');
+            }
+        });
+    });
+});
+</script>
+<?= $this->endSection() ?>

@@ -61,6 +61,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
 
     <script src="<?= base_url('js/chat.js')?>?v=<?= time()?>"></script>
+
+    <!-- Custom Scripts from Views -->
+    <?= $this->renderSection('scripts') ?>
 </body>
 
 </html>
