@@ -10,9 +10,28 @@
     <p class="text-muted small px-3">No worries, we'll send you reset instructions.</p>
 </div>
 
-<form action="<?= base_url('forgot') ?>" method="post">
+<form action="<?= url_to('magic-link') ?>" method="post">
     <!-- CSRF Placeholder -->
     <?= csrf_field() ?>
+    
+    <?php if (session('error') !== null) : ?>
+        <div class="alert alert-danger" role="alert"><?= session('error') ?></div>
+    <?php elseif (session('errors') !== null) : ?>
+        <div class="alert alert-danger" role="alert">
+            <?php if (is_array(session('errors'))) : ?>
+                <?php foreach (session('errors') as $error) : ?>
+                    <?= $error ?>
+                    <br>
+                <?php endforeach ?>
+            <?php else : ?>
+                <?= session('errors') ?>
+            <?php endif ?>
+        </div>
+    <?php endif ?>
+    
+    <?php if (session('message') !== null) : ?>
+        <div class="alert alert-success" role="alert"><?= session('message') ?></div>
+    <?php endif ?>
     
     <div class="mb-4">
         <label for="email" class="form-label small fw-semibold text-muted">Email Address</label>

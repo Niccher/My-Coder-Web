@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'Authentication' ?></title>
+    <title><?= $title ?? 'myCoder chat | Authentication' ?></title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="<?= base_url('favicon.png') ?>">
     
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -29,7 +32,7 @@
         }
         .auth-card {
             width: 100%;
-            max-width: 450px;
+            max-width: 550px;
             background-color: var(--sidebar-bg);
             border-radius: 24px;
             border: 1px solid var(--border-color);

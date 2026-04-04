@@ -6,15 +6,15 @@
 <div class="user-profile-wrapper position-absolute top-0 end-0 mt-3 me-4" style="z-index: 100;">
     <div class="dropdown">
         <button class="btn btn-link p-1 text-decoration-none d-flex align-items-center gap-2 profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <div class="avatar-sm">D</div>
-            <span class="fw-medium text-themed d-none d-md-block">Domino AI</span>
+            <div class="avatar-sm"><?= strtoupper(substr(auth()->user()->username ?? 'U', 0, 1)) ?></div>
+            <span class="fw-medium text-themed d-none d-md-block"><?= esc(auth()->user()->username ?? 'User') ?></span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary-subtle">
-            <li><h6 class="dropdown-header">Account</h6></li>
+            <li><h6 class="dropdown-header">Account (<?= esc(auth()->user()->email ?? '') ?>)</h6></li>
             <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="fa-solid fa-user-gear opacity-50"></i> View Profile</a></li>
             <li><button class="dropdown-item d-flex align-items-center gap-2" type="button" id="openSettingsDropdown"><i class="fa-solid fa-gear opacity-50"></i> Settings</button></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="<?= url_to('logout') ?>"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
     </div>
 </div>
