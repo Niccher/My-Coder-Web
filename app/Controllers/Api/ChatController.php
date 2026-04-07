@@ -38,6 +38,7 @@ class ChatController extends BaseController
         $prompt         = trim($body['prompt'] ?? '');
         $fileContext    = trim($body['file_context'] ?? '');
         $conversationId = (int) ($body['conversation_id'] ?? 0);
+        $personaId      = (int) ($body['persona_id'] ?? 0);
 
         if ($prompt === '') {
             return $this->fail('Prompt cannot be empty.', 422);
@@ -48,19 +49,32 @@ class ChatController extends BaseController
         // ── Conversation management ───────────────────────────────────────────
         $convModel = new ConversationModel();
         if ($conversationId === 0) {
-            // Create a new conversation with the first few words as the title
-            $title          = mb_substr($prompt, 0, 60) . (mb_strlen($prompt) > 60 ? '…' : '');
-            $conversationId = $convModel->insert(['user_id' => $userId, 'title' => $title], true);
+            $title = substr($prompt, 0, 40) . (strlen($prompt) > 40 ? '...' : '');
+            $conversationId = $convModel->insert([
+                'user_id'    => $userId, 
+                'title'      => $title,
+                'persona_id' => $personaId > 0 ? $personaId : null
+            ], true);
         } else {
             // Validate ownership
-            if (!$convModel->findForUser($conversationId, $userId)) {
+            $conv = $convModel->findForUser($conversationId, $userId);
+            if (!$conv) {
                 return $this->failNotFound('Conversation not found.');
+            }
+            // If personaId was NOT provided in request, use the one from DB
+            if ($personaId <= 0 && !empty($conv['persona_id'])) {
+                $personaId = (int) $conv['persona_id'];
+            }
+            
+            // If personaId was provided and differs from DB, update it
+            if ($personaId > 0 && (int) ($conv['persona_id'] ?? 0) !== $personaId) {
+                $convModel->update($conversationId, ['persona_id' => $personaId]);
             }
         }
 
         // ── Save the user message ─────────────────────────────────────────────
         $msgModel = new MessageModel();
-        $msgModel->saveUserMessage($conversationId, $prompt);
+        $userMsgId = $msgModel->saveUserMessage($conversationId, $prompt);
 
         // ── Load model settings ───────────────────────────────────────────────
         $settingModel = new UserSettingModel();
@@ -78,10 +92,25 @@ class ChatController extends BaseController
             return $this->fail('No AI models configured. Please add API keys in Settings.', 428);
         }
 
+        // ── Persona / System Instructions ────────────────────────────────────
+        $systemInstructions = '';
+        if ($personaId > 0) {
+            $personaModel = new \App\Models\PersonaModel();
+            $persona = $personaModel->where('id', $personaId)->where('user_id', $userId)->first();
+            if ($persona) {
+                $systemInstructions = $persona['instructions'];
+            }
+        }
+
         // ── Build full prompt (with file context if any) ──────────────────────
         $fullPrompt = $prompt;
         if ($fileContext !== '') {
             $fullPrompt = "Context from attached files:\n---\n{$fileContext}\n---\n\nUser question: {$prompt}";
+        }
+        
+        // Prepended system instructions
+        if (!empty($systemInstructions)) {
+            $fullPrompt = "SYSTEM INSTRUCTION:\n{$systemInstructions}\n\n---\n\n{$fullPrompt}";
         }
 
         // ── Call active models in parallel (curl_multi) ───────────────────────
@@ -115,6 +144,8 @@ class ChatController extends BaseController
 
         return $this->respond([
             'conversation_id' => $conversationId,
+            'persona_id'      => $personaId,
+            'user_message_id' => $userMsgId,
             'models'          => $modelResults,
             'master_eval'     => $masterEval,
         ]);

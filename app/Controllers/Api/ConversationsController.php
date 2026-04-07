@@ -67,9 +67,17 @@ class ConversationsController extends BaseController
         $convModel = new ConversationModel();
         
         if (is_numeric($id)) {
-            $conv = $convModel->findForUser($id, $userId);
+            $conv = $convModel->select('conversations.*, personas.name as persona_name')
+                             ->join('personas', 'personas.id = conversations.persona_id', 'left')
+                             ->where('conversations.id', $id)
+                             ->where('conversations.user_id', $userId)
+                             ->first();
         } else {
-            $conv = $convModel->where('uuid', $id)->where('user_id', $userId)->first();
+            $conv = $convModel->select('conversations.*, personas.name as persona_name')
+                             ->join('personas', 'personas.id = conversations.persona_id', 'left')
+                             ->where('conversations.uuid', $id)
+                             ->where('conversations.user_id', $userId)
+                             ->first();
         }
 
         if (!$conv) {
@@ -77,7 +85,7 @@ class ConversationsController extends BaseController
         }
 
         $msgModel = new MessageModel();
-        $conv['messages'] = $msgModel->getForConversation($conv['id']);
+        $conv['messages'] = $msgModel->getForConversation((int)$conv['id']);
 
         return $this->respond($conv);
     }
@@ -100,5 +108,67 @@ class ConversationsController extends BaseController
         $convModel->delete($id);
 
         return $this->respondDeleted(['message' => 'Conversation deleted.']);
+    }
+
+    /**
+     * POST /api/conversations/{id}/branch
+     * Body: { "message_id": int }
+     * Creates a new conversation forked from the given message point.
+     */
+    public function branch(int $id): ResponseInterface
+    {
+        $userId    = auth()->id();
+        $convModel = new ConversationModel();
+        $conv      = $convModel->findForUser($id, $userId);
+
+        if (!$conv) {
+            return $this->failNotFound('Conversation not found.');
+        }
+
+        $body      = $this->request->getJSON(true);
+        $messageId = (int) ($body['message_id'] ?? 0);
+
+        if ($messageId <= 0) {
+            return $this->fail('message_id is required.', 422);
+        }
+
+        $msgModel = new MessageModel();
+
+        // Find the target message to get its created_at timestamp
+        $targetMsg = $msgModel->find($messageId);
+        if (!$targetMsg || (int) $targetMsg['conversation_id'] !== $id) {
+            return $this->failNotFound('Message not found in this conversation.');
+        }
+
+        // Fetch all messages up to and including the target message
+        $messagesToCopy = $msgModel
+            ->where('conversation_id', $id)
+            ->where('created_at <=', $targetMsg['created_at'])
+            ->orderBy('created_at', 'ASC')
+            ->findAll();
+
+        // Create the new branched conversation
+        $branchTitle  = mb_substr($conv['title'], 0, 50) . ' (Branch)';
+        $newConvId    = $convModel->insert(['user_id' => $userId, 'title' => $branchTitle], true);
+
+        // Bulk-insert copied messages
+        foreach ($messagesToCopy as $msg) {
+            $msgModel->insert([
+                'conversation_id' => $newConvId,
+                'role'            => $msg['role'],
+                'model_name'      => $msg['model_name'] ?? null,
+                'content'         => $msg['content'],
+            ]);
+        }
+
+        // Retrieve the new conversation's UUID
+        $newConv = $convModel->find($newConvId);
+
+        return $this->respond([
+            'conversation_id' => $newConvId,
+            'uuid'            => $newConv['uuid'] ?? null,
+            'title'           => $branchTitle,
+            'message_count'   => count($messagesToCopy),
+        ], 201);
     }
 }

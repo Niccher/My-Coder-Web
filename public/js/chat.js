@@ -7,6 +7,10 @@ $(document).ready(function() {
     const $sidebarBackdrop = $('#sidebar-backdrop');
     const $mobileSidebarToggle = $('#mobile-sidebar-toggle');
     let attachedFiles = [];
+    let activePersonaId = 0;
+    let userMessageIndex = 0; // tracks position of user messages in current conversation
+    let currentConversationId = null;
+    const $sidebarHistoryList = $('#sidebar-history-list');
 
     // --- Marked.js & Prism Configuration ---
     const renderer = new marked.Renderer();
@@ -96,10 +100,11 @@ $(document).ready(function() {
         $('#settingsModal').modal('show');
     });
 
-    // Auto-resize textarea
+    // Auto-resize textarea and count tokens
     $chatInput.on('input', function() {
         this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
+        this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        calculateTokens();
     });
 
     // Handle send button click
@@ -116,10 +121,9 @@ $(document).ready(function() {
     });
 
     // Track the active conversation across messages
-    let currentConversationId = null;
-    const $sidebarHistoryList = $('#sidebar-history-list');
 
-    function loadSidebarConversations() {
+
+    function loadConversations() {
         $.getJSON('/api/conversations', function(data) {
             $sidebarHistoryList.find('.history-item, .no-chats').remove();
 
@@ -144,7 +148,7 @@ $(document).ready(function() {
         });
     }
 
-    loadSidebarConversations();
+    loadConversations();
 
     // Check if unique URL ID was passed
     if (window.serverData && window.serverData.chatUuid) {
@@ -166,7 +170,7 @@ $(document).ready(function() {
                 if (currentConversationId == id) {
                     $('.new-chat-btn').click();
                 } else {
-                    loadSidebarConversations();
+                    loadConversations();
                 }
             }
         });
@@ -174,21 +178,27 @@ $(document).ready(function() {
 
     $('.new-chat-btn').on('click', function() {
         currentConversationId = null;
+        userMessageIndex = 0;
+        window.history.pushState({}, '', '/');
+        
         $chatContainer.empty().append(`
             <div id="greeting-box" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center pb-5 animate__animated animate__fadeIn">
-                <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">New Chat</h1>
-                <p class="lead text-muted">Select an AI model and start typing.</p>
+                <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Hello, User</h1>
+                <p class="lead text-muted">How can I help you today?</p>
             </div>
         `);
-        loadSidebarConversations();
-        if ($(window).width() <= 768) $sidebarBackdrop.click(); // auto-close sidebar
+        loadConversations();
+        if ($(window).width() <= 768) $sidebarBackdrop.click();
     });
 
     function loadConversation(id) {
+        userMessageIndex = 0; // reset branch index
         $chatContainer.empty().append('<div class="text-center mt-5 text-muted"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i> Loading...</div>');
         
         $.getJSON(`/api/conversations/${id}`, function(data) {
             currentConversationId = data.id;
+            activePersonaId = data.persona_id || 0;
+            $('#current-persona-name').text(data.persona_name || 'Default Assistant');
             $chatContainer.empty();
             
             if (!data.messages === undefined || data.messages.length === 0) {
@@ -196,11 +206,11 @@ $(document).ready(function() {
             } else {
                 data.messages.forEach(msg => {
                     const aiTitle = (msg.role === 'ai') ? msg.model_name : null;
-                    appendMessage(msg.role, msg.content, aiTitle);
+                    appendMessage(msg.role, msg.content, aiTitle, msg.id);
                 });
             }
             scrollToBottom();
-            loadSidebarConversations();
+            loadConversations();
             if ($(window).width() <= 768) $sidebarBackdrop.click();
         }).fail(function() {
             $chatContainer.empty().append('<div class="text-center mt-5 text-danger">Failed to load conversation.</div>');
@@ -211,12 +221,29 @@ $(document).ready(function() {
         const message = $chatInput.val().trim();
         if (message === '' && attachedFiles.length === 0) return;
 
+        let hasValidConfig = false;
+        if (window.activeChatModels) {
+            for (let i = 1; i <= 3; i++) {
+                if (window.activeChatModels[i] && window.activeChatModels[i].has_key && window.activeChatModels[i].model_name) {
+                    hasValidConfig = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!hasValidConfig) {
+            alert("No configured AI models detected! Please set up at least one model and API key before chatting.");
+            $('#settingsModal').modal('show');
+            return;
+        }
+
         appendMessage('user', message);
         $chatInput.val('').css('height', 'auto');
 
         // Collect file context
         const fileContext = attachedFiles.map(f => `=== ${f.name} ===\n${f.content || ''}`).join('\n\n');
         clearFiles();
+        calculateTokens();
 
         if ($('#greeting-box').length) {
             $('#greeting-box').fadeOut(300, function() { $(this).remove(); });
@@ -225,7 +252,9 @@ $(document).ready(function() {
         appendMultiModelResponse(message, fileContext);
     }
 
-    function appendMessage(role, text, customTitle = null) {
+
+
+    function appendMessage(role, text, customTitle = null, msgId = null) {
         const avatar = role === 'user' ? 'U' : 'AI';
         const timestampStr = getFullTimestamp();
         let messageContent = text;
@@ -237,12 +266,18 @@ $(document).ready(function() {
 
         const titleHtml = customTitle ? `<div class="mb-2 fw-semibold text-primary"><i class="fa-solid fa-microchip me-1"></i> ${escapeHtml(customTitle)}</div>` : '';
         
+        // Branch button only on user messages
+        const msgIdx = role === 'user' ? ++userMessageIndex : null;
+        const branchBtn = (role === 'user') 
+            ? `<button class="btn btn-link p-0 ms-2 branch-msg-btn text-muted" title="Branch from here" data-msg-idx="${msgIdx}" ${msgId ? `data-msg-id="${msgId}"` : ''}><i class="fa-solid fa-code-branch" style="font-size:0.8rem;"></i></button>`
+            : '';
+        
         const messageHtml = `
-            <div class="message ${role} animate__animated animate__fadeInUp">
+            <div class="message ${role} animate__animated animate__fadeInUp" ${msgId ? `data-msg-id="${msgId}"` : `data-msg-idx="${msgIdx}"`}>
                 <div class="avatar">${avatar}</div>
                 <div class="message-body">
                     <div class="message-content">${titleHtml}${messageContent}</div>
-                    <div class="message-timestamp">${timestampStr}</div>
+                    <div class="message-timestamp d-flex align-items-center gap-2">${timestampStr}${branchBtn}</div>
                 </div>
             </div>
         `;
@@ -298,13 +333,20 @@ $(document).ready(function() {
                 prompt:          userPrompt,
                 file_context:    fileContext,
                 conversation_id: currentConversationId,
+                persona_id:      activePersonaId,
             }),
             success: function(data) {
                 const wasNew = !currentConversationId;
                 currentConversationId = data.conversation_id;
 
+                if (data.user_message_id) {
+                    const $lastUserMsg = $(`.message.user[data-msg-idx="${userMessageIndex}"]`);
+                    $lastUserMsg.attr('data-msg-id', data.user_message_id);
+                    $lastUserMsg.find('.branch-msg-btn').attr('data-msg-id', data.user_message_id);
+                }
+
                 if (wasNew) {
-                    loadSidebarConversations(); // Refresh list to show the new chat dynamically
+                    loadConversations(); // Refresh list to show the new chat dynamically
                 }
 
                 const models    = data.models || [];
@@ -475,6 +517,7 @@ $(document).ready(function() {
             reader.onload = (e) => {
                 file.content = e.target.result;
                 attachedFiles.push(file);
+                calculateTokens();
             };
 
             if (isText) {
@@ -482,10 +525,12 @@ $(document).ready(function() {
             } else {
                 file.content = '[Binary file — no text context]';
                 attachedFiles.push(file);
+                calculateTokens();
             }
 
             $chip.find('.chip-remove').on('click', function() {
                 attachedFiles = attachedFiles.filter(f => f !== file);
+                calculateTokens();
                 $chip.addClass('chip-exit');
                 setTimeout(() => $chip.remove(), 200);
             });
@@ -498,6 +543,41 @@ $(document).ready(function() {
     function clearFiles() {
         attachedFiles = [];
         $filePreviewArea.empty();
+        calculateTokens();
+    }
+    
+    function calculateTokens() {
+        const text = $chatInput.val().trim() || '';
+        let totalChars = text.length;
+        
+        attachedFiles.forEach(f => {
+            if (f.content) {
+                totalChars += f.content.length;
+            }
+        });
+
+        if (totalChars === 0) {
+            $('#token-estimate-container').addClass('d-none');
+            return;
+        }
+
+        $('#token-estimate-container').removeClass('d-none');
+        // Rough heuristic: ~4 characters per token for English text/code
+        const estimatedTokens = Math.ceil(totalChars / 4);
+        
+        // Cost heuristic (e.g. $2.50 per 1M input tokens, or $0.0025 per 1k)
+        // using a somewhat generic blended cost for high end models 
+        const costPer1k = 0.0025; 
+        let estimatedCost = (estimatedTokens / 1000) * costPer1k;
+        
+        // Keep to 4 decimal places unless it's practically zero
+        let costStr = estimatedCost.toFixed(4);
+        if (estimatedCost < 0.0001 && estimatedCost > 0) {
+            costStr = '< 0.0001';
+        }
+
+        $('#token-count-val').text(estimatedTokens.toLocaleString());
+        $('#token-cost-val').text(`~$${costStr}`);
     }
 
     function getFullTimestamp() {
@@ -604,6 +684,67 @@ $(document).ready(function() {
                 $btn.html(originalHtml);
                 $btn.removeClass('text-success border-success');
             }, 2000);
+        });
+    }
+
+    // --- Branching Logic ---
+    $(document).on('click', '.branch-msg-btn', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const msgId = $btn.data('msg-id');
+        const msgIdx = $btn.data('msg-idx');
+        
+        if (!currentConversationId) return;
+
+        if (!confirm('Branch this conversation from this point? A new chat will be created starting with messages up to here.')) {
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: `/api/conversations/${currentConversationId}/branch`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ message_id: msgId }),
+            success: function(res) {
+                showToast('Conversation branched successfully!', 'success');
+                // Navigate to the new conversation
+                if (res.uuid) {
+                    window.history.pushState({}, '', `/c/${res.uuid}`);
+                    loadConversation(res.uuid);
+                } else {
+                    loadConversation(res.conversation_id);
+                }
+                // Refresh sidebar to show new branch
+                loadConversations();
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON?.message || 'Failed to branch conversation.';
+                showToast(msg, 'danger');
+                $btn.prop('disabled', false).html('<i class="fa-solid fa-code-branch" style="font-size:0.8rem;"></i>');
+            }
+        });
+    });
+
+    function showToast(message, type = 'success') {
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0 animate__animated animate__fadeInRight" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        $('body').append(toastHtml);
+        const $toast = $(`#${toastId}`);
+        const bsToast = new bootstrap.Toast($toast[0], { delay: 3000 });
+        bsToast.show();
+        $toast.on('hidden.bs.toast', function () {
+            $(this).remove();
         });
     }
 
@@ -714,6 +855,148 @@ $(document).ready(function() {
             alert('Failed to fetch conversation data for export.');
             $icon.attr('class', originalIconClass);
         });
+    });
+
+    // --- Multi-Persona Management ---
+    function loadPersonas() {
+        $.getJSON('/api/personas', function(data) {
+            // Populate Settings List
+            const $list = $('#personas-list-container');
+            $list.empty();
+            
+            // Populate Chat Dropdown
+            const $dropdown = $('#persona-list-dropdown');
+            $dropdown.find('li:gt(1)').remove(); // Keep header and divider
+
+            if (data.length === 0) {
+                $list.append('<div class="text-center py-3 text-muted small">No custom personas yet. Create one to get started!</div>');
+                $dropdown.append('<li><a class="dropdown-item small text-muted" href="#">No personas found</a></li>');
+            } else {
+                data.forEach(persona => {
+                    const isDefault = persona.is_default == 1;
+                    if (isDefault && activePersonaId === 0 && !currentConversationId) {
+                        activePersonaId = persona.id;
+                        $('#current-persona-name').text(persona.name);
+                    }
+
+                    // Settings List Item
+                    $list.append(`
+                        <div class="persona-item d-flex align-items-center justify-content-between p-2 mb-2 border border-secondary border-opacity-10 rounded bg-black bg-opacity-10 shadow-sm">
+                            <div class="flex-grow-1 min-width-0 pe-2">
+                                <div class="fw-semibold small text-truncate">${escapeHtml(persona.name)} ${isDefault ? '<span class="badge bg-primary transform-scale-75 origin-left">Default</span>' : ''}</div>
+                                <div class="text-muted small text-truncate" style="font-size: 0.7rem;">${escapeHtml(persona.instructions)}</div>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary edit-persona-btn p-1 px-2" data-id="${persona.id}" data-name="${escapeHtml(persona.name)}" data-instructions="${escapeHtml(persona.instructions)}" data-default="${persona.is_default}"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm btn-outline-danger delete-persona-btn p-1 px-2" data-id="${persona.id}"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    `);
+
+                    // Dropdown Item
+                    $dropdown.append(`
+                        <li><a class="dropdown-item persona-select-item d-flex justify-content-between align-items-center py-2" href="#" data-id="${persona.id}" data-name="${escapeHtml(persona.name)}">
+                            ${escapeHtml(persona.name)}
+                            ${persona.id == activePersonaId ? '<i class="fa-solid fa-check text-success ms-2"></i>' : ''}
+                        </a></li>
+                    `);
+                });
+            }
+            
+            // Add "Default" option to dropdown
+            $dropdown.prepend(`<li><a class="dropdown-item persona-select-item" href="#" data-id="0" data-name="Default Assistant">Default Assistant ${activePersonaId == 0 ? '<i class="fa-solid fa-check text-success ms-2"></i>' : ''}</a></li>`);
+        });
+    }
+
+    // Initial Load
+    loadPersonas();
+
+    // Toggle Editor
+    $('#add-persona-btn').on('click', function() {
+        $('#persona-editor-title').text('Create New Persona');
+        $('#edit-persona-id').val('0');
+        $('#edit-persona-name').val('');
+        $('#edit-persona-instructions').val('');
+        $('#edit-persona-default').prop('checked', false);
+        $('#persona-editor-card').removeClass('d-none').addClass('animate__animated animate__fadeInDown');
+        $(this).fadeOut(200);
+    });
+
+    $('#cancel-persona-btn').on('click', function() {
+        $('#persona-editor-card').addClass('d-none');
+        $('#add-persona-btn').fadeIn(200);
+    });
+
+    $(document).on('click', '.edit-persona-btn', function() {
+        const d = $(this).data();
+        $('#persona-editor-title').text('Edit Persona');
+        $('#edit-persona-id').val(d.id);
+        $('#edit-persona-name').val(d.name);
+        $('#edit-persona-instructions').val(d.instructions);
+        $('#edit-persona-default').prop('checked', d.default == 1);
+        $('#persona-editor-card').removeClass('d-none');
+        $('#add-persona-btn').fadeOut(200);
+    });
+
+    $('#save-persona-btn').on('click', function() {
+        const data = {
+            id: $('#edit-persona-id').val(),
+            name: $('#edit-persona-name').val(),
+            instructions: $('#edit-persona-instructions').val(),
+            is_default: $('#edit-persona-default').is(':checked')
+        };
+
+        if (!data.name || !data.instructions) {
+            showToast('Please fill in all fields.', 'warning');
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+
+        $.ajax({
+            url: '/api/personas',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function() {
+                showToast('Persona saved successfully!', 'success');
+                $('#persona-editor-card').addClass('d-none');
+                $('#add-persona-btn').show();
+                loadPersonas();
+            },
+            error: function() { showToast('Failed to save persona.', 'danger'); },
+            complete: function() { $btn.prop('disabled', false).text('Save Persona'); }
+        });
+    });
+
+    $(document).on('click', '.delete-persona-btn', function() {
+        if (!confirm('Are you sure you want to delete this persona?')) return;
+        const id = $(this).data('id');
+        $.ajax({
+            url: `/api/personas/${id}`,
+            method: 'DELETE',
+            success: function() {
+                showToast('Persona deleted.', 'success');
+                loadPersonas();
+            }
+        });
+    });
+
+    // Selecting Persona
+    $(document).on('click', '.persona-select-item', function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        activePersonaId = id;
+        $('#current-persona-name').text(name);
+        
+        // Visual indicator in dropdown
+        $('.persona-select-item i.fa-check').remove();
+        $(this).append('<i class="fa-solid fa-check text-success ms-2"></i>');
+
+        // If in an active conversation, we could optionally update the DB persona_id immediately
+        // but for now we'll do it on the next message send.
     });
 
     function downloadBlob(blob, filename) {

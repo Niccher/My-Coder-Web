@@ -18,7 +18,12 @@ $routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Ap
     $routes->get('conversations/paginated', 'ConversationsController::listPaginated');
     $routes->get('conversations', 'ConversationsController::index');
     $routes->get('conversations/(:segment)', 'ConversationsController::show/$1');
+    $routes->post('conversations/(:num)/branch', 'ConversationsController::branch/$1');
     $routes->delete('conversations/(:num)', 'ConversationsController::delete/$1');
+
+    $routes->get('personas', 'PersonasController::index');
+    $routes->post('personas', 'PersonasController::save');
+    $routes->delete('personas/(:num)', 'PersonasController::delete/$1');
 });
 
 $routes->group('', ['namespace' => '\CodeIgniter\Shield\Controllers'], static function ($routes) {

@@ -34,29 +34,40 @@
 </div>
 
 <div id="input-wrapper" class="file-upload-zone">
+    <div id="token-estimate-container" class="d-none w-100 px-3 py-1 bg-body-tertiary border-bottom border-secondary border-opacity-25 text-end small shadow-sm text-muted" style="border-top-left-radius: 20px; border-top-right-radius: 20px; font-size: 0.75rem;">
+        <i class="fa-solid fa-coins me-1 text-warning"></i> 
+        Tokens: <strong id="token-count-val">0</strong> (<span id="token-cost-val">~$0.00</span>)
+    </div>
     <div id="file-preview-area"></div>
     <div id="input-container">
         <input type="file" id="file-upload-input" multiple style="display: none;">
-        <button id="upload-btn" class="action-btn"><i class="fa-solid fa-paperclip"></i></button>
+        <button id="upload-btn" class="action-btn" title="Upload files"><i class="fa-solid fa-paperclip"></i></button>
         <textarea id="chat-input" placeholder="Type a message..." rows="1"></textarea>
+        
+        <!-- Inline Persona Selector -->
+        <div class="dropdown h-100 d-flex align-items-center">
+            <button class="btn btn-link text-themed p-2 d-flex align-items-center gap-1 opacity-75 hover-opacity-100" type="button" id="personaDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.9rem; text-decoration: none;">
+                <i class="fa-solid fa-user-ninja text-primary anim-pulse" style="font-size: 0.8rem;"></i>
+                <span id="current-persona-name" class="d-none d-sm-inline opacity-75" style="font-size: 0.75rem;">Default</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary-subtle" id="persona-list-dropdown" style="min-width: 250px; border-radius: 12px;">
+                <li><h6 class="dropdown-header">Choose AI Persona</h6></li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Loaded dynamically -->
+            </ul>
+        </div>
+
         <button id="send-btn" class="action-btn text-primary"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
 
     <!-- Active Models Container -->
-    <div class="active-models-container mt-3 d-flex flex-column align-items-center gap-2">
-        <div class="d-flex gap-2 justify-content-center">
-            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
-                Gemini 1.5</button>
-            <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
-                DeepSeek R1</button>
-            <button class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal"><i class="fa-solid fa-microchip me-1"></i>
-                Grok-2</button>
-        </div>
-        <div>
-            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#modelSelectionModal" style="font-size: 0.75rem;">
-                <i class="fa-solid fa-brain me-1 text-danger"></i> Evaluated by Master Model (GPT-4o)
+    <div class="active-models-container mt-4 d-flex flex-column align-items-center gap-2">
+        <div class="d-flex gap-2 justify-content-center" id="active-primary-models">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fa-solid fa-gear me-1 pe-none"></i>
+                Configure Models
             </button>
         </div>
+        <div id="active-master-model"></div>
     </div>
 </div>
 
@@ -78,7 +89,7 @@
                 <div class="d-flex settings-body">
 
                     <!-- Sidebar Nav -->
-                    <div class="nav nav-pills flex-column settings-nav border-end border-secondary-subtle p-3" role="tablist" aria-orientation="vertical" style="width: 200px; flex-shrink: 0;">
+                    <div class="nav nav-pills flex-column settings-nav border-end border-secondary-subtle p-3" role="tablist" aria-orientation="vertical">
                         <div class="nav-section-label">Account</div>
                         <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#sp-profile" type="button" role="tab">
                             <i class="fa-solid fa-circle-user"></i> Profile
@@ -99,6 +110,9 @@
                         <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sp-models" type="button" role="tab">
                             <i class="fa-solid fa-microchip"></i> Models & Tokens
                         </button>
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sp-personas" type="button" role="tab">
+                            <i class="fa-solid fa-users-gear"></i> Personas
+                        </button>
                     </div>
 
                     <!-- Tab Content -->
@@ -107,7 +121,7 @@
                         <!-- ── Profile ──────────────────────────── -->
                         <div class="tab-pane fade show active" id="sp-profile">
                             <h6 class="settings-heading">User Profile</h6>
-                            <p class="settings-desc">Manage your display name, email, and AI persona.</p>
+                            <p class="settings-desc">Manage your display name and email address.</p>
 
                             <div class="d-flex align-items-center mb-3">
                                 <div class="settings-avatar me-3">D</div>
@@ -127,9 +141,46 @@
                                     <input type="email" class="form-control" value="user@example.com">
                                 </div>
                             </div>
-                            <div>
-                                <label class="form-label small fw-semibold mb-1">AI Persona / System Instructions</label>
-                                <textarea class="form-control" rows="3" placeholder="e.g. You are a helpful assistant that speaks formally..."></textarea>
+                        </div>
+
+                        <!-- ── Personas ─────────────────────────── -->
+                        <div class="tab-pane fade" id="sp-personas">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="settings-heading mb-0">AI Personas</h6>
+                                <button class="btn btn-sm btn-primary rounded-pill" id="add-persona-btn">
+                                    <i class="fa-solid fa-plus me-1"></i> New
+                                </button>
+                            </div>
+                            <p class="settings-desc">Define custom system instructions for different roles.</p>
+
+                            <div id="personas-list-container" class="mb-4">
+                                <!-- Dynamically populated list of personas -->
+                                <div class="text-center py-3 text-muted">
+                                    <i class="fa-solid fa-circle-notch fa-spin me-2"></i> Loading personas...
+                                </div>
+                            </div>
+
+                            <div id="persona-editor-card" class="card bg-themed border-secondary border-opacity-25 d-none">
+                                <div class="card-body p-3">
+                                    <h6 class="fs-6 fw-bold mb-3" id="persona-editor-title">Create New Persona</h6>
+                                    <input type="hidden" id="edit-persona-id" value="0">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold mb-1">Persona Name</label>
+                                        <input type="text" id="edit-persona-name" class="form-control form-control-sm" placeholder="e.g. Code Reviewer">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold mb-1">System Instructions</label>
+                                        <textarea id="edit-persona-instructions" class="form-control form-control-sm" rows="5" placeholder="You are an expert programmer who reviews code for security and performance..."></textarea>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="edit-persona-default">
+                                        <label class="form-check-label small" for="edit-persona-default">Set as default for new chats</label>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-primary flex-grow-1" id="save-persona-btn">Save Persona</button>
+                                        <button class="btn btn-sm btn-outline-secondary" id="cancel-persona-btn">Cancel</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -400,8 +451,8 @@
 
             <div class="modal-footer px-4 py-3 border-top border-secondary-subtle bg-dark bg-opacity-10">
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary rounded-pill px-4" id="quick-model-save-btn">
-                    <i class="fa-solid fa-check me-1"></i> Apply & Save
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="quick-model-save-btn" data-bs-dismiss="modal" onclick="$('#settingsModal').modal('show')">
+                    <i class="fa-solid fa-gear me-1"></i> Advanced Settings
                 </button>
             </div>
         </div>
@@ -506,6 +557,45 @@ $(document).ready(function () {
                     $(`#quick_model_${slot}`).val(s.model_name || '');
                 }, 60);
             });
+            
+            // Store globally for chat logic
+            window.activeChatModels = data;
+            renderActiveModelsUI();
+        });
+    }
+
+    function renderActiveModelsUI() {
+        const data = window.activeChatModels;
+        const $primary = $('#active-primary-models');
+        const $master = $('#active-master-model');
+        $primary.empty();
+        $master.empty();
+
+        let hasReadyModel = false;
+        const btnClasses = ['btn-outline-primary', 'btn-outline-success', 'btn-outline-info'];
+
+        for (let i = 1; i <= 3; i++) {
+            const s = data[i];
+            if (s && s.has_key && s.model_name) {
+                hasReadyModel = true;
+                const cls = btnClasses[i - 1] || 'btn-outline-secondary';
+                $primary.append(`<button class="btn btn-sm ${cls} rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fa-solid fa-microchip me-1 pe-none"></i> ${escapeHtml(s.model_name)}</button>`);
+            }
+        }
+
+        if (!hasReadyModel) {
+            $primary.append(`<button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fa-solid fa-triangle-exclamation me-1 pe-none"></i> API Key Required - Click to Configure</button>`);
+        }
+
+        if (data[4] && data[4].has_key && data[4].model_name) {
+            $master.append(`<button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold active-model-btn" data-bs-toggle="modal" data-bs-target="#settingsModal" style="font-size: 0.75rem;"><i class="fa-solid fa-star me-1 text-warning pe-none"></i> Evaluated by ${escapeHtml(data[4].model_name)}</button>`);
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.toString().replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
         });
     }
 
