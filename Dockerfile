@@ -17,10 +17,30 @@ RUN docker-php-ext-install \
     mysqli \
     gd \
     zip \
-    mbstring
+    mbstring \
+    opcache
 
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
+
+# Use the production configuration
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# Configure Opcache and Logging
+RUN { \
+    echo 'opcache.memory_consumption=128'; \
+    echo 'opcache.interned_strings_buffer=8'; \
+    echo 'opcache.max_accelerated_files=4000'; \
+    echo 'opcache.revalidate_freq=60'; \
+    echo 'opcache.fast_shutdown=1'; \
+    echo 'error_log=/dev/stderr'; \
+    echo 'display_errors=Off'; \
+    echo 'log_errors=On'; \
+    } > "$PHP_INI_DIR/conf.d/docker-opcache.ini"
+
+# Redirect Apache logs to stdout/stderr
+RUN ln -sf /dev/stdout /var/log/apache2/access.log && \
+    ln -sf /dev/stderr /var/log/apache2/error.log
 
 # Update Apache configuration for public document root
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
@@ -33,8 +53,10 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html
+# Create writable directory structure and set permissions
+RUN mkdir -p writable/cache writable/logs writable/session writable/debugbar && \
+    chown -R www-data:www-data /var/www/html && \
+    chmod -R 775 writable
 
 # Expose port
 EXPOSE 80

@@ -1,60 +1,87 @@
-# CodeIgniter 4 Framework
+# My Coder
 
-## What is CodeIgniter?
+A professional-grade, containerized CodeIgniter 4 application designed for high performance and security. This boilerplate provides a robust foundation for building modern web applications with Docker orchestration and production-ready configurations.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+## Prerequisites
 
-This repository holds the distributable version of the framework.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+Before getting started, ensure you have the following installed:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Composer](https://getcomposer.org/) (Optional, for local development outside Docker)
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+## Quick Start (The Docker Way)
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+Run the following command to build and start the containers:
 
-## Important Change with index.php
+```bash
+docker-compose up -d --build
+```
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+Once the containers are running, you can access the application and tools at the following URLs:
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+| Service | URL | Port |
+| :--- | :--- | :--- |
+| **App** | [http://localhost:8080](http://localhost:8080) | 8080 |
+| **phpMyAdmin** | [http://localhost:8081](http://localhost:8081) | 8081 |
 
-**Please** read the user guide for a better explanation of how CI4 works!
+## Directory Structure
 
-## Repository Management
+An overview of the project structure:
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+```text
+.
+├── app/            # Application source code (Controllers, Models, Views)
+├── public/         # Document root (accessible to the web)
+├── writable/       # Cache, logs, sessions, and debug data
+├── system/         # CodeIgniter 4 core files
+├── vendor/         # Composer dependencies
+├── Dockerfile      # PHP-Apache container configuration
+└── docker-compose.yml
+```
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+- **public/**: This is the web root. Only this folder should be accessible from the web.
+- **app/**: Contains all your application logic.
+- **writable/**: Used by the framework for temporary files. This directory must be writable by the web server.
+
+## Environment Configuration
+
+1. Copy the provided environment template:
+   ```bash
+   cp env .env
+   ```
+2. Open `.env` and configure your settings. For Docker environments, ensure the database host is set to `db`:
+   ```ini
+   database.default.hostname = db
+   database.default.database = my_coder
+   database.default.username = user
+   database.default.password = password
+   ```
+
+## Optimization & Build Details
+
+This project uses a carefully crafted `.dockerignore` file to ensure:
+- **Smaller Image Size**: Excludes `.git`, `node_modules`, and IDE configuration files.
+- **Faster Builds**: Only essential source files are copied into the container.
+- **Security**: Sensitive local logs and caches are not included in the production image.
+
+## Database Migrations
+
+To run CodeIgniter 4 migrations inside the Docker container, use the following command:
+
+```bash
+docker exec -it my_coder_app php spark migrate
+```
+
+## Security & Permissions
+
+- **File Permissions**: The `writable/` directory is automatically configured with `775` permissions and `www-data` ownership during the Docker build process.
+- **Production Hardening**: The container uses `php.ini-production`, enables `opcache`, and redirects Apache logs to `stdout/stderr` for better observability.
 
 ## Contributing
 
-We welcome contributions from the community.
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/awesome-feature`).
+3. Commit your changes (`git commit -m 'Add awesome feature'`).
+4. Push to the branch (`git push origin feature/awesome-feature`).
+5. Open a Pull Request.
 
-Please read the [*Contributing to CodeIgniter*](https://github.com/codeigniter4/CodeIgniter4/blob/develop/CONTRIBUTING.md) section in the development repository.
-
-## Server Requirements
-
-PHP version 8.1 or higher is required, with the following extensions installed:
-
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
-
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - If you are still using PHP 7.4 or 8.0, you should upgrade immediately.
-> - The end of life date for PHP 8.1 will be December 31, 2025.
-
-Additionally, make sure that the following extensions are enabled in your PHP:
-
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+Please follow the PSR-12 coding standard and include tests for new features.
