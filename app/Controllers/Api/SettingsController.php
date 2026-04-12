@@ -34,11 +34,12 @@ class SettingsController extends BaseController
         foreach ([1, 2, 3, 4] as $slot) {
             $row = $raw[$slot] ?? [];
             $result[$slot] = [
-                'model_slot' => $slot,
-                'model_name' => $row['model_name'] ?? '',
-                'provider'   => $row['provider'] ?? '',
-                'api_key'    => !empty($row['api_key']) ? $this->maskKey($row['api_key']) : '',
-                'has_key'    => !empty($row['api_key']),
+                'model_slot'    => $slot,
+                'model_name'    => $row['model_name'] ?? '',
+                'provider'      => $row['provider'] ?? '',
+                'api_key'       => !empty($row['api_key']) ? $this->maskKey($row['api_key']) : '',
+                'has_key'       => !empty($row['api_key']),
+                'history_limit' => $row['history_limit'] ?? null,
             ];
         }
 
@@ -81,9 +82,12 @@ class SettingsController extends BaseController
                 continue;
             }
 
+            $historyLimit = isset($slot['history_limit']) && $slot['history_limit'] !== '' ? (int) $slot['history_limit'] : null;
+
             $data = [
-                'model_name' => $modelName,
-                'provider'   => $provider,
+                'model_name'    => $modelName,
+                'provider'      => $provider,
+                'history_limit' => $historyLimit,
             ];
 
             // Only update key if a new one was provided (not masked placeholder)

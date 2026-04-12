@@ -325,7 +325,7 @@
                             ?>
 
                             <?php foreach ($slots as $s) : ?>
-                            <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm mb-3 rounded-4 overflow-hidden">
+                            <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm mb-3 rounded-4">
                                 <!-- Top Row: Icon + Provider (FlexRow) -->
                                 <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-2 px-3 d-flex align-items-center gap-3">
                                     <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white" id="provider_icon_<?= $s['slot'] ?>" style="width:36px;height:36px;font-size:0.75rem;flex-shrink:0;background:#6c757d;transition:background 0.3s;">
@@ -356,6 +356,17 @@
                                                 id="model_apikey_<?= $s['slot'] ?>" 
                                                 placeholder="API Key / Token" 
                                                 autocomplete="off">
+                                        </div>
+
+                                        <!-- History Context Limit -->
+                                        <div class="input-group input-group-sm" title="How many past messages to send as context. Leave blank for unlimited.">
+                                            <span class="input-group-text bg-body border-end-0 text-muted"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                                            <input type="number"
+                                                class="form-control model-history-limit border-start-0 ps-0 bg-body"
+                                                data-slot="<?= $s['slot'] ?>"
+                                                id="model_history_limit_<?= $s['slot'] ?>"
+                                                placeholder="History messages (blank = unlimited)"
+                                                min="1" max="500">
                                         </div>
                                     </div>
 
@@ -551,6 +562,10 @@ $(document).ready(function () {
                     $status.text('');
                 }
 
+                // Populate history limit field
+                const $histLimit = $(`#model_history_limit_${slot}`);
+                $histLimit.val(s.history_limit != null ? s.history_limit : '');
+
                 // -- Quick modal (mirrored) --
                 $(`#quick_provider_${slot}`).val(s.provider || '').trigger('change.quick');
                 setTimeout(function () {
@@ -629,11 +644,13 @@ $(document).ready(function () {
 
         const slots = [];
         for (let i = 1; i <= 4; i++) {
+            const rawLimit = $(`#model_history_limit_${i}`).val();
             slots.push({
-                slot:       i,
-                provider:   $(`#model_provider_${i}`).val() || '',
-                model_name: $(`#model_name_${i}`).val() || '',
-                api_key:    $(`#model_apikey_${i}`).val() || '',
+                slot:          i,
+                provider:      $(`#model_provider_${i}`).val() || '',
+                model_name:    $(`#model_name_${i}`).val() || '',
+                api_key:       $(`#model_apikey_${i}`).val() || '',
+                history_limit: rawLimit !== '' ? parseInt(rawLimit, 10) : null,
             });
         }
 

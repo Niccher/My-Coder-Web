@@ -103,18 +103,24 @@ class ChatController extends BaseController
         }
 
         // ── Build full prompt (with file context if any) ──────────────────────
+        // Note: system instructions are passed natively to each provider's system field.
         $fullPrompt = $prompt;
         if ($fileContext !== '') {
             $fullPrompt = "Context from attached files:\n---\n{$fileContext}\n---\n\nUser question: {$prompt}";
         }
-        
-        // Prepended system instructions
-        if (!empty($systemInstructions)) {
-            $fullPrompt = "SYSTEM INSTRUCTION:\n{$systemInstructions}\n\n---\n\n{$fullPrompt}";
+
+        // ── Load conversation history (includes the just-saved user message) ──
+        $history = $msgModel->getForConversation($conversationId);
+
+        // Inject file context into the last message for this API call only.
+        // File context is intentionally NOT persisted to the DB.
+        if ($fileContext !== '' && !empty($history)) {
+            $lastKey = array_key_last($history);
+            $history[$lastKey]['content'] = $fullPrompt;
         }
 
         // ── Call active models in parallel (curl_multi) ───────────────────────
-        $responses      = $this->queryModelsParallel($activeModels, $fullPrompt);
+        $responses      = $this->queryModelsParallel($activeModels, $history, $systemInstructions);
         $modelResults   = [];
 
         foreach ($responses as $slot => $response) {
@@ -155,14 +161,20 @@ class ChatController extends BaseController
     // PARALLEL MULTI-MODEL QUERYING
     // ──────────────────────────────────────────────────────────────────────────
 
-    private function queryModelsParallel(array $models, string $prompt): array
+    private function queryModelsParallel(array $models, array $history, string $systemInstructions): array
     {
         $curlHandles = [];
         $multiCurl   = curl_multi_init();
         $results     = [];
 
         foreach ($models as $slot => $model) {
-            $ch = $this->buildCurlHandle($model, $prompt);
+            // Apply this slot's history limit (null = unlimited)
+            $limit       = (int) ($model['history_limit'] ?? 0);
+            $slotHistory = ($limit > 0 && count($history) > $limit)
+                ? array_slice($history, -$limit)
+                : $history;
+
+            $ch = $this->buildCurlHandle($model, $slotHistory, $systemInstructions);
             if ($ch) {
                 $curlHandles[$slot] = $ch;
                 curl_multi_add_handle($multiCurl, $ch);
@@ -191,7 +203,7 @@ class ChatController extends BaseController
         return $results;
     }
 
-    private function buildCurlHandle(array $model, string $prompt): ?\CurlHandle
+    private function buildCurlHandle(array $model, array $history, string $systemInstructions = ''): ?\CurlHandle
     {
         $provider = $model['provider'];
         $apiKey   = $model['api_key'];
@@ -199,46 +211,49 @@ class ChatController extends BaseController
 
         switch ($provider) {
             case 'gemini':
-                $modelId = $this->resolveGeminiModelId($name);
-                $url     = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
-                $payload = json_encode(['contents' => [['parts' => [['text' => $prompt]]]]]);
-                return $this->createCurlPost($url, $payload, ['Content-Type: application/json']);
+                $modelId  = $this->resolveGeminiModelId($name);
+                $url      = "https://generativelanguage.googleapis.com/v1beta/models/{$modelId}:generateContent?key={$apiKey}";
+                $body     = ['contents' => $this->buildGeminiContents($history, $name)];
+                if ($systemInstructions !== '') {
+                    $body['system_instruction'] = ['parts' => [['text' => $systemInstructions]]];
+                }
+                return $this->createCurlPost($url, json_encode($body), ['Content-Type: application/json']);
 
             case 'deepseek':
                 $url     = 'https://api.deepseek.com/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveDeepSeekModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveDeepSeekModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'grok':
                 $url     = 'https://api.x.ai/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveGrokModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveGrokModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'openai':
                 $url     = 'https://api.openai.com/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveOpenAIModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveOpenAIModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'kimi':
                 $url     = 'https://api.moonshot.cn/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveKimiModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveKimiModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'minimax':
                 $url     = 'https://api.minimax.io/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveMiniMaxModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveMiniMaxModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'groq':
                 $url     = 'https://api.groq.com/openai/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveGroqModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveGroqModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, ['Content-Type: application/json', "Authorization: Bearer {$apiKey}"]);
 
             case 'openrouter':
                 $url     = 'https://openrouter.ai/api/v1/chat/completions';
-                $payload = json_encode(['model' => $this->resolveOpenRouterModelId($name), 'messages' => [['role' => 'user', 'content' => $prompt]]]);
+                $payload = json_encode(['model' => $this->resolveOpenRouterModelId($name), 'messages' => $this->buildOpenAiMessages($history, $name, $systemInstructions)]);
                 return $this->createCurlPost($url, $payload, [
-                    'Content-Type: application/json', 
+                    'Content-Type: application/json',
                     "Authorization: Bearer {$apiKey}",
                     "HTTP-Referer: https://mycoder.chegecache.co.ke",
                     "X-Title: My Coder Chat"
@@ -320,7 +335,9 @@ class ChatController extends BaseController
 
     private function querySingleModel(array $model, string $prompt): array
     {
-        $ch  = $this->buildCurlHandle($model, $prompt);
+        // Build a minimal single-turn history for the master model evaluation prompt.
+        $singleHistory = [['role' => 'user', 'model_name' => null, 'content' => $prompt]];
+        $ch = $this->buildCurlHandle($model, $singleHistory, '');
         if (!$ch) {
             return ['content' => '', 'error' => 'Unknown provider.'];
         }
@@ -329,6 +346,67 @@ class ChatController extends BaseController
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         return $this->parseApiResponse($model['provider'], $raw ?: null, $httpCode);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MESSAGE HISTORY BUILDERS
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Build an OpenAI-compatible messages array from conversation history.
+     *
+     * AI messages are filtered to only include responses from THIS specific model
+     * (identified by model_name), so each model gets a clean, alternating
+     * user/assistant thread without cross-model contamination.
+     */
+    private function buildOpenAiMessages(array $history, string $modelName, string $systemInstructions): array
+    {
+        $messages = [];
+
+        if ($systemInstructions !== '') {
+            $messages[] = ['role' => 'system', 'content' => $systemInstructions];
+        }
+
+        foreach ($history as $msg) {
+            if ($msg['role'] === 'user') {
+                $messages[] = ['role' => 'user', 'content' => $msg['content']];
+            } elseif ($msg['role'] === 'ai' && ($msg['model_name'] ?? '') === $modelName) {
+                $messages[] = ['role' => 'assistant', 'content' => $msg['content']];
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Build a Gemini-compatible contents array from conversation history.
+     *
+     * Uses 'user' / 'model' roles. Filters AI messages to only include
+     * this model's responses. Merges consecutive user messages to prevent
+     * API errors caused by missed AI turns (e.g. when a model failed a prior turn).
+     */
+    private function buildGeminiContents(array $history, string $modelName): array
+    {
+        $contents = [];
+        $lastRole = null;
+
+        foreach ($history as $msg) {
+            if ($msg['role'] === 'user') {
+                if ($lastRole === 'user' && !empty($contents)) {
+                    // Merge into the previous user turn to avoid consecutive same-role error.
+                    $last = count($contents) - 1;
+                    $contents[$last]['parts'][0]['text'] .= "\n\n" . $msg['content'];
+                } else {
+                    $contents[] = ['role' => 'user', 'parts' => [['text' => $msg['content']]]];
+                    $lastRole   = 'user';
+                }
+            } elseif ($msg['role'] === 'ai' && ($msg['model_name'] ?? '') === $modelName) {
+                $contents[] = ['role' => 'model', 'parts' => [['text' => $msg['content']]]];
+                $lastRole   = 'model';
+            }
+        }
+
+        return $contents;
     }
 
     // ──────────────────────────────────────────────────────────────────────────

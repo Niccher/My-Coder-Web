@@ -9,7 +9,7 @@ class UserSettingModel extends Model
     protected $table      = 'user_settings';
     protected $primaryKey = 'id';
     protected $useTimestamps = true;
-    protected $allowedFields = ['user_id', 'model_slot', 'model_name', 'api_key', 'provider'];
+    protected $allowedFields = ['user_id', 'model_slot', 'model_name', 'api_key', 'provider', 'history_limit'];
 
     /**
      * Get all model slots for a user (slots 1–3 = regular models, slot 4 = master)
@@ -35,6 +35,8 @@ class UserSettingModel extends Model
                     // so we leave it as plain text.
                 }
             }
+            // Expose history_limit as a plain nullable int
+            $row['history_limit'] = isset($row['history_limit']) ? (int) $row['history_limit'] : null;
             $settings[$row['model_slot']] = $row;
         }
         return $settings;
@@ -49,6 +51,12 @@ class UserSettingModel extends Model
             $encrypter = \Config\Services::encrypter();
             // Store as base64 to avoid binary truncation issues in DB
             $data['api_key'] = base64_encode($encrypter->encrypt($data['api_key']));
+        }
+
+        // Sanitize history_limit: must be a positive int or null (unlimited)
+        if (array_key_exists('history_limit', $data)) {
+            $limit = (int) ($data['history_limit'] ?? 0);
+            $data['history_limit'] = $limit > 0 ? $limit : null;
         }
 
         $existing = $this->where('user_id', $userId)->where('model_slot', $slot)->first();
