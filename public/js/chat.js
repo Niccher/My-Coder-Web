@@ -514,7 +514,14 @@ $(document).ready(function() {
 
 
     function appendMessage(role, text, customTitle = null, msgId = null) {
-        const avatar = role === 'user' ? 'U' : 'AI';
+        let avatar = 'AI';
+        if (role === 'user') {
+            if (window.serverData.userAvatar) {
+                avatar = `<img src="${window.serverData.userAvatar}" class="w-100 h-100 rounded-circle object-fit-cover">`;
+            } else {
+                avatar = window.serverData.userInitials || 'U';
+            }
+        }
         const timestampStr = getFullTimestamp();
         let messageContent = text;
         if (role === 'ai') {
@@ -960,11 +967,11 @@ $(document).ready(function() {
                 const folderBadge = conv.folder_id ? `<span class="badge bg-warning bg-opacity-25 text-warning-emphasis"><i class="fa-solid fa-folder me-1"></i>Folder</span>` : '';
                 
                 $('#allHistoryList').append(`
-                    <div class="card shadow-sm border border-secondary border-opacity-10 rounded-3 mb-2">
+                    <div class="card shadow-sm border border-themed rounded-3 mb-2 bg-themed">
                         <div class="card-body p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                             <div class="flex-grow-1 overflow-hidden">
                                 <h6 class="mb-1 text-truncate">
-                                    <a href="${url}" class="text-decoration-none text-body fw-bold">${escapeHtml(conv.title || 'New Chat')}</a>
+                                    <a href="${url}" class="text-decoration-none text-themed fw-bold">${escapeHtml(conv.title || 'New Chat')}</a>
                                 </h6>
                                 <div class="text-muted small d-flex flex-wrap gap-3">
                                     <span><i class="fa-regular fa-clock me-1"></i> ${dateStr}</span>
@@ -1379,4 +1386,73 @@ $(document).ready(function() {
             }
         });
     }
+    // ─── Profile Management ──────────────────────────────────
+    $('#avatar-input').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#settings-avatar-preview').html(`<img src="${e.target.result}" class="w-100 h-100 rounded-circle object-fit-cover">`);
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    $('#save-profile-btn').on('click', function() {
+        const $btn = $(this);
+        const originalHtml = $btn.html();
+        
+        const username = $('#profile-username').val();
+        const bio = $('#profile-bio').val();
+        const avatarFile = $('#avatar-input')[0].files[0];
+
+        if (!username) {
+            showToast('Username is required.', 'danger');
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin me-2"></i> Saving...');
+
+        const formData = new FormData();
+        formData.append('username', username);
+        formData.append('bio', bio);
+        if (avatarFile) {
+            formData.append('avatar', avatarFile);
+        }
+
+        $.ajax({
+            url: '/api/user/profile',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                showToast(res.message, 'success');
+                // Update header/sidebar displays
+                if (res.user.avatar) {
+                    $('#sidebar-avatar').html(`<img src="${res.user.avatar}" class="w-100 h-100 rounded-circle object-fit-cover">`);
+                    window.serverData.userAvatar = res.user.avatar;
+                }
+                $('#sidebar-username').text(res.user.username);
+                window.serverData.userName = res.user.username;
+                window.serverData.userInitials = res.user.username.substring(0, 2).toUpperCase();
+                
+                // Update initials display if no avatar
+                if (!res.user.avatar) {
+                    $('#settings-avatar-preview').text(window.serverData.userInitials);
+                }
+
+                // Also update the greeting if visible
+                $('#greeting-box h1').html(`Hello, ${res.user.username}`);
+            },
+            error: function(xhr) {
+                const err = xhr.responseJSON ? xhr.responseJSON.messages : { error: 'Failed to update profile.' };
+                const msg = typeof err === 'object' ? Object.values(err).join(' ') : err;
+                showToast(msg, 'danger');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        });
+    });
 });

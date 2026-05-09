@@ -28,6 +28,7 @@ $routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Ap
     $routes->get('folders', 'FoldersController::index');
     $routes->post('folders', 'FoldersController::save');
     $routes->delete('folders/(:num)', 'FoldersController::delete/$1');
+    $routes->post('user/profile', 'UserController::updateProfile');
     $routes->patch('conversations/(:num)/folder', 'ConversationsController::updateFolder/$1');
 });
 

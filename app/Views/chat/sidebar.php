@@ -70,10 +70,17 @@
             <div class="user-profile-wrapper mt-1">
                 <div class="dropdown">
                     <div class="history-item dropdown-toggle d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fa-solid fa-circle-user me-2"></i> <span class="flex-grow-1 text-truncate"><?= esc(auth()->user()->username ?? 'Domino AI') ?></span>
+                        <div id="sidebar-avatar" class="me-2 d-flex align-items-center justify-content-center" style="width:18px; height:18px; font-size: 0.65rem; font-weight: bold;">
+                            <?php if ($avatar = auth()->user()->avatar): ?>
+                                <img src="<?= base_url('uploads/avatars/' . $avatar) ?>" class="w-100 h-100 rounded-circle object-fit-cover">
+                            <?php else: ?>
+                                <?= strtoupper(substr(auth()->user()->username ?? 'U', 0, 2)) ?>
+                            <?php endif; ?>
+                        </div>
+                        <span class="flex-grow-1 text-truncate" id="sidebar-username"><?= esc(auth()->user()->username ?? 'Domino AI') ?></span>
                     </div>
                     <ul class="dropdown-menu shadow" style="width: 240px;">
-                        <li><h6 class="dropdown-header px-3 text-truncate"><?= esc(auth()->user()->email ?? 'Account') ?></h6></li>
+                        <li><h6 class="dropdown-header px-3 text-truncate" id="sidebar-email"><?= esc(auth()->user()->email ?? 'Account') ?></h6></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="json"><i class="fa-solid fa-file-code me-2"></i> Export as JSON</a></li>
                         <li><a class="dropdown-item py-2 export-chat-btn" href="#" data-format="xml"><i class="fa-solid fa-code me-2"></i> Export as XML</a></li>

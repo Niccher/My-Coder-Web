@@ -14,7 +14,7 @@
 </div>
 
 <div id="input-wrapper" class="file-upload-zone">
-    <div id="token-estimate-container" class="d-none w-100 px-3 py-1 bg-body-tertiary border-bottom border-secondary border-opacity-25 text-end small shadow-sm text-muted" style="border-top-left-radius: 20px; border-top-right-radius: 20px; font-size: 0.75rem;">
+    <div id="token-estimate-container" class="d-none w-100 px-3 py-1 bg-themed border-bottom border-themed text-end small shadow-sm text-themed" style="border-top-left-radius: 20px; border-top-right-radius: 20px; font-size: 0.75rem;">
         <i class="fa-solid fa-coins me-1 text-warning"></i> 
         Tokens: <strong id="token-count-val">0</strong> (<span id="token-cost-val">~$0.00</span>)
     </div>
@@ -30,7 +30,7 @@
                 <i class="fa-solid fa-user-ninja text-primary anim-pulse" style="font-size: 0.8rem;"></i>
                 <span id="current-persona-name" class="d-none d-sm-inline opacity-75" style="font-size: 0.75rem;">Default</span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary-subtle" id="persona-list-dropdown" style="min-width: 250px; border-radius: 12px;">
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-themed" id="persona-list-dropdown" style="min-width: 250px; border-radius: 12px;">
                 <li><h6 class="dropdown-header">Choose AI Persona</h6></li>
                 <li><hr class="dropdown-divider"></li>
                 <!-- Loaded dynamically -->
@@ -58,11 +58,11 @@
         <div class="modal-content settings-modal border-0 shadow-lg">
 
             <!-- Header -->
-            <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
+            <div class="modal-header px-4 py-3 border-bottom border-themed">
                 <h5 class="modal-title fw-bold" id="settingsModalLabel">
                     <i class="fa-solid fa-gear me-2"></i>Dashboard Settings
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <!-- Body: Sidebar + Content -->
@@ -70,7 +70,7 @@
                 <div class="d-flex settings-body flex-grow-1" style="min-height: 0; overflow: hidden;">
 
                     <!-- Sidebar Nav -->
-                    <div class="nav nav-pills flex-column settings-nav border-end border-secondary-subtle p-3" role="tablist" aria-orientation="vertical">
+                    <div class="nav nav-pills flex-column settings-nav border-end border-themed p-3" role="tablist" aria-orientation="vertical">
                         <div class="nav-section-label">Account</div>
                         <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#sp-profile" type="button" role="tab">
                             <i class="fa-solid fa-circle-user"></i> Profile
@@ -105,22 +105,38 @@
                             <p class="settings-desc">Manage your display name and email address.</p>
 
                             <div class="d-flex align-items-center mb-3">
-                                <div class="settings-avatar me-3">D</div>
+                                <div class="settings-avatar me-3" id="settings-avatar-preview">
+                                    <?php if ($avatar = auth()->user()->avatar): ?>
+                                        <img src="<?= base_url('uploads/avatars/' . $avatar) ?>" class="w-100 h-100 rounded-circle object-fit-cover">
+                                    <?php else: ?>
+                                        <?= strtoupper(substr(auth()->user()->username, 0, 2)) ?>
+                                    <?php endif; ?>
+                                </div>
                                 <div>
-                                    <div class="fw-semibold">Domino AI</div>
-                                    <a href="#" class="small text-primary text-decoration-none">Change avatar</a>
+                                    <div class="fw-semibold"><?= esc(auth()->user()->username) ?></div>
+                                    <input type="file" id="avatar-input" class="d-none" accept="image/*">
+                                    <a href="#" class="small text-primary text-decoration-none" onclick="$('#avatar-input').click(); return false;">Change avatar</a>
                                 </div>
                             </div>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold mb-1">Display Name</label>
-                                    <input type="text" class="form-control" value="Domino AI">
+                                    <input type="text" id="profile-username" class="form-control" value="<?= esc(auth()->user()->username) ?>">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold mb-1">Email Address</label>
-                                    <input type="email" class="form-control" value="user@example.com">
+                                    <input type="email" id="profile-email" class="form-control bg-themed opacity-75" value="<?= esc(auth()->user()->email) ?>" readonly title="Email cannot be changed">
                                 </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-semibold mb-1">Bio / Status</label>
+                                    <textarea id="profile-bio" class="form-control" rows="2" placeholder="Tell us about yourself..."><?= esc(auth()->user()->bio ?? '') ?></textarea>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button class="btn btn-primary rounded-pill px-4" id="save-profile-btn">
+                                    <i class="fa-solid fa-user-check me-2"></i> Save Profile
+                                </button>
                             </div>
                         </div>
 
@@ -141,7 +157,7 @@
                                 </div>
                             </div>
 
-                            <div id="persona-editor-card" class="card bg-themed border-secondary border-opacity-25 d-none">
+                            <div id="persona-editor-card" class="card bg-themed border-themed d-none">
                                 <div class="card-body p-3">
                                     <h6 class="fs-6 fw-bold mb-3" id="persona-editor-title">Create New Persona</h6>
                                     <input type="hidden" id="edit-persona-id" value="0">
@@ -311,9 +327,9 @@
                             <div class="row g-3">
                             <?php foreach ($slots as $s) : ?>
                             <div class="col-md-6">
-                                <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm h-100 rounded-4">
+                                <div class="card bg-themed border-themed shadow-sm h-100 rounded-4">
                                 <!-- Top Row: Icon + Provider (FlexRow) -->
-                                <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-2 px-3 d-flex align-items-center gap-3">
+                                <div class="card-header bg-transparent border-bottom border-themed py-2 px-3 d-flex align-items-center gap-3">
                                     <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white" id="provider_icon_<?= $s['slot'] ?>" style="width:36px;height:36px;font-size:0.75rem;flex-shrink:0;background:#6c757d;transition:background 0.3s;">
                                         <?= $s['slot'] == 7 ? '<i class="fa-solid fa-star"></i>' : $s['slot'] ?>
                                     </div>
@@ -327,17 +343,17 @@
 
                                 <!-- Rows Below: Stacked Model & Token -->
                                 <div class="card-body px-3 py-3 ps-md-5 ps-3">
-                                    <div class="d-flex flex-column gap-2 border-start border-2 border-secondary border-opacity-25 ps-md-3 ps-2 py-1 ms-1">
+                                    <div class="d-flex flex-column gap-2 border-start border-2 border-themed ps-md-3 ps-2 py-1 ms-1">
                                         <!-- Model Select -->
-                                        <select class="form-select form-select-sm model-name bg-body" data-slot="<?= $s['slot'] ?>" id="model_name_<?= $s['slot'] ?>">
+                                        <select class="form-select form-select-sm model-name bg-themed" data-slot="<?= $s['slot'] ?>" id="model_name_<?= $s['slot'] ?>">
                                             <option value="">-- Select Model --</option>
                                         </select>
                                         
                                         <!-- API Key Input -->
                                         <div class="input-group input-group-sm">
-                                            <span class="input-group-text bg-body border-end-0 text-muted"><i class="fa-solid fa-key"></i></span>
+                                            <span class="input-group-text bg-themed border-end-0 text-muted"><i class="fa-solid fa-key"></i></span>
                                             <input type="password" 
-                                                class="form-control model-apikey border-start-0 ps-0 bg-body" 
+                                                class="form-control model-apikey border-start-0 ps-0 bg-themed" 
                                                 data-slot="<?= $s['slot'] ?>" 
                                                 id="model_apikey_<?= $s['slot'] ?>" 
                                                 placeholder="API Key / Token" 
@@ -346,9 +362,9 @@
 
                                         <!-- History Context Limit -->
                                         <div class="input-group input-group-sm" title="How many past messages to send as context. Leave blank for unlimited.">
-                                            <span class="input-group-text bg-body border-end-0 text-muted"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                                            <span class="input-group-text bg-themed border-end-0 text-muted"><i class="fa-solid fa-clock-rotate-left"></i></span>
                                             <input type="number"
-                                                class="form-control model-history-limit border-start-0 ps-0 bg-body"
+                                                class="form-control model-history-limit border-start-0 ps-0 bg-themed"
                                                 data-slot="<?= $s['slot'] ?>"
                                                 id="model_history_limit_<?= $s['slot'] ?>"
                                                 placeholder="History messages (blank = unlimited)"
@@ -387,7 +403,7 @@
             </div>
 
             <!-- Footer -->
-            <div class="modal-footer px-4 py-3 border-top border-secondary-subtle">
+            <div class="modal-footer px-4 py-3 border-top border-themed">
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary rounded-pill px-4" id="settings-save-btn">
                     <i class="fa-solid fa-check me-1"></i> Save
@@ -402,7 +418,7 @@
 <div class="modal fade" id="modelSelectionModal" tabindex="-1" aria-labelledby="modelSelectionModalLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content settings-modal border-0 shadow-lg" style="max-height: 85vh;">
-            <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
+            <div class="modal-header px-4 py-3 border-bottom border-themed">
                 <h5 class="modal-title fw-bold" id="modelSelectionModalLabel">
                     <i class="fa-solid fa-layer-group me-2 opacity-50"></i>Active Models
                 </h5>
@@ -420,7 +436,7 @@
                     ['slot' => 4, 'label' => 'Master Model ★',  'badge_class' => 'bg-danger'],
                 ];
                 foreach ($quickSlots as $qs): ?>
-                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded-3 bg-body-tertiary border border-secondary border-opacity-10">
+                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded-3 bg-themed border border-themed">
                     <!-- Provider Icon -->
                     <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white flex-shrink-0"
                          id="quick_icon_<?= $qs['slot'] ?>"
@@ -432,14 +448,14 @@
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <span class="badge <?= $qs['badge_class'] ?> rounded-pill" style="font-size:0.65rem;"><?= $qs['label'] ?></span>
                         </div>
-                        <select class="form-select form-select-sm bg-body border-secondary-subtle quick-provider-select mb-1"
+                        <select class="form-select form-select-sm bg-themed border-themed quick-provider-select mb-1"
                                 data-slot="<?= $qs['slot'] ?>" id="quick_provider_<?= $qs['slot'] ?>">
                             <option value="">-- Provider --</option>
                             <?php foreach ($providerOptions as $val => $lbl): ?>
                             <option value="<?= $val ?>"><?= $lbl ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <select class="form-select form-select-sm bg-body border-secondary-subtle quick-model-select"
+                        <select class="form-select form-select-sm bg-themed border-themed quick-model-select"
                                 data-slot="<?= $qs['slot'] ?>" id="quick_model_<?= $qs['slot'] ?>">
                             <option value="">-- Model --</option>
                         </select>
@@ -448,7 +464,7 @@
                 <?php endforeach; ?>
             </div>
 
-            <div class="modal-footer px-4 py-3 border-top border-secondary-subtle bg-dark bg-opacity-10">
+            <div class="modal-footer px-4 py-3 border-top border-themed bg-themed">
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary rounded-pill px-4" id="quick-model-save-btn" data-bs-dismiss="modal" onclick="$('#settingsModal').modal('show')">
                     <i class="fa-solid fa-gear me-1"></i> Advanced Settings
@@ -552,7 +568,9 @@
 <script>
 window.serverData = { 
     chatUuid: '<?= esc($chatUuid ?? '') ?>',
-    userName: '<?= esc(auth()->user()->username ?? 'User') ?>'
+    userName: '<?= esc(auth()->user()->username ?? 'User') ?>',
+    userInitials: '<?= strtoupper(substr(auth()->user()->username ?? 'U', 0, 2)) ?>',
+    userAvatar: '<?= auth()->user()->avatar ? base_url('uploads/avatars/' . auth()->user()->avatar) : '' ?>'
 };
 </script>
 <script>
