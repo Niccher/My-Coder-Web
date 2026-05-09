@@ -31,7 +31,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= base_url('css/chat.css')?>">
+    <link rel="stylesheet" href="<?= base_url('css/chat.css')?>?v=<?= time() ?>">
 </head>
 
 <body>

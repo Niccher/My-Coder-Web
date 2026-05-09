@@ -24,6 +24,11 @@ $routes->group('api', ['filter' => 'session', 'namespace' => 'App\Controllers\Ap
     $routes->get('personas', 'PersonasController::index');
     $routes->post('personas', 'PersonasController::save');
     $routes->delete('personas/(:num)', 'PersonasController::delete/$1');
+
+    $routes->get('folders', 'FoldersController::index');
+    $routes->post('folders', 'FoldersController::save');
+    $routes->delete('folders/(:num)', 'FoldersController::delete/$1');
+    $routes->patch('conversations/(:num)/folder', 'ConversationsController::updateFolder/$1');
 });
 
 $routes->group('', ['namespace' => '\CodeIgniter\Shield\Controllers'], static function ($routes) {

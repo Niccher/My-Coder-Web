@@ -143,33 +143,266 @@ $(document).ready(function() {
     // Track the active conversation across messages
 
 
-    window.loadConversations = function() {
-        $.getJSON('/api/conversations', function(data) {
-            $sidebarHistoryList.find('.history-item, .no-chats').remove();
-
+    window.loadFolders = function() {
+        $.getJSON('/api/folders', function(data) {
+            const $container = $('#folders-container');
+            $container.empty();
+            
             if (!data || data.length === 0) {
-                $sidebarHistoryList.append('<div class="px-3 py-2 text-muted no-chats" style="font-size: 0.85rem;">No recent chats.</div>');
+                $container.append('<div class="px-3 py-2 text-muted small">No folders created.</div>');
                 return;
             }
-
-            // Top 5
-            const recent = data.slice(0, 5);
-            recent.forEach(conv => {
-                const isActive = (conv.id == currentConversationId) ? 'bg-secondary bg-opacity-25' : '';
-                $sidebarHistoryList.append(`
-                    <div class="history-item d-flex justify-content-between align-items-center ${isActive}" data-id="${conv.id}">
-                        <span class="text-truncate flex-grow-1 sidebar-chat-title" style="cursor:pointer;" title="${escapeHtml(conv.title)}">${escapeHtml(conv.title || 'New Chat')}</span>
-                        <button class="btn btn-link text-danger p-0 ms-2 delete-chat-btn" data-id="${conv.id}" title="Delete chat">
-                            <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
-                        </button>
+            
+            // Limit to last 5 folders in sidebar
+            const limitedFolders = data.slice(0, 5);
+            
+            limitedFolders.forEach(folder => {
+                $container.append(`
+                    <div class="folder-wrapper mb-1">
+                        <div class="folder-header d-flex align-items-center p-2 rounded-3 hover-bg-subtle cursor-pointer mx-2" data-id="${folder.id}">
+                            <i class="fa-solid fa-folder me-2 text-warning opacity-75"></i>
+                            <span class="flex-grow-1 fw-medium small text-truncate">${escapeHtml(folder.name)}</span>
+                            <button class="btn btn-link btn-sm p-0 text-danger delete-folder-btn opacity-50" data-id="${folder.id}">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="folder-items ps-3 d-none" id="folder-items-${folder.id}"></div>
                     </div>
                 `);
             });
+
+            if (data.length > 5) {
+                $container.append('<div class="px-3 py-1 text-center"><small class="text-muted" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#allHistoryModal">Show all folders...</small></div>');
+            }
+        });
+    };
+
+    $(document).on('click', '.folder-header', function() {
+        const id = $(this).data('id');
+        $(`#folder-items-${id}`).toggleClass('d-none');
+        $(this).find('i.fa-folder').toggleClass('fa-folder-open');
+    });
+
+    $('#add-folder-btn').on('click', function() {
+        const name = prompt('Enter folder name:');
+        if (!name) return;
+        $.ajax({
+            url: '/api/folders',
+            method: 'POST',
+            data: JSON.stringify({ name: name }),
+            contentType: 'application/json',
+            success: function() {
+                window.loadFolders();
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-folder-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        if (!confirm('Delete folder? (Chats will be moved to Recent)')) return;
+        $.ajax({
+            url: `/api/folders/${id}`,
+            method: 'DELETE',
+            success: function() {
+                window.loadFolders();
+                window.loadConversations();
+            }
+        });
+    });
+
+    window.loadConversations = function() {
+        const $recentList = $('#recent-chats-list');
+        $.getJSON('/api/conversations', function(data) {
+            $recentList.find('.history-item, .no-chats').remove();
+            $('.folder-items').empty();
+
+            if (!data || data.length === 0) {
+                $recentList.append('<div class="px-3 py-2 text-muted no-chats" style="font-size: 0.85rem;">No recent chats.</div>');
+                return;
+            }
+
+            window.allConversations = data;
+            
+            let recentCount = 0;
+            data.forEach(conv => {
+                const isActive = (conv.id == currentConversationId) ? 'bg-secondary bg-opacity-25' : '';
+                const chatUrl = `${window.location.origin}/c/${conv.uuid}`;
+                const itemHtml = `
+                    <div class="history-item d-flex justify-content-between align-items-center ${isActive}" data-id="${conv.id}" data-title="${escapeHtml(conv.title).toLowerCase()}">
+                        <span class="text-truncate flex-grow-1 sidebar-chat-title" style="cursor:pointer;" title="${escapeHtml(conv.title)}">${escapeHtml(conv.title || 'New Chat')}</span>
+                        <button class="btn btn-link text-muted p-0 sidebar-dots open-chat-actions" 
+                                data-conv-id="${conv.id}" 
+                                data-conv-title="${escapeHtml(conv.title || 'New Chat')}" 
+                                data-conv-url="${chatUrl}"
+                                data-folder-id="${conv.folder_id || ''}">
+                            <i class="fa-solid fa-ellipsis-vertical" style="font-size: 0.75rem;"></i>
+                        </button>
+                    </div>
+                `;
+
+                if (conv.folder_id) {
+                    const $fItems = $(`#folder-items-${conv.folder_id}`);
+                    if ($fItems.length && $fItems.children().length < 5) {
+                        $fItems.append(itemHtml);
+                    }
+                } else {
+                    if (recentCount < 5) {
+                        $recentList.append(itemHtml);
+                        recentCount++;
+                    }
+                }
+            });
+
+            if (recentCount >= 5) {
+                $recentList.append('<div class="px-3 py-1 text-center"><small class="text-muted" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#allHistoryModal">Show all history...</small></div>');
+            }
         });
     }
 
     window.loadConversations();
+    window.loadFolders();
 
+    // ── Chat Actions Modal ───────────────────────────────────────────────
+    let activeActionConvId = null;
+    let activeActionUrl = null;
+    const $actionsModal = $('#chatActionsModal');
+    const actionsModalInstance = new bootstrap.Modal($actionsModal[0]);
+
+    $(document).on('click', '.open-chat-actions', function(e) {
+        e.stopPropagation();
+        activeActionConvId = $(this).data('conv-id');
+        activeActionUrl = $(this).data('conv-url');
+        const title = $(this).data('conv-title');
+        const currentFolderId = $(this).data('folder-id');
+        
+        function openActionsModal() {
+            $('#chatActionsTitle').text(title);
+            $('#action-url-display').val(activeActionUrl);
+            $('#modal-new-folder-name').val('');
+
+            // Highlight current folder
+            $('.modal-move-folder-none').toggleClass('bg-primary bg-opacity-10 fw-bold', !currentFolderId);
+
+            const $folderList = $('#modal-folder-list');
+            $folderList.empty();
+            $.getJSON('/api/folders', function(folders) {
+                folders.forEach(f => {
+                    const isCurrent = (f.id == currentFolderId);
+                    const activeClass = isCurrent ? 'bg-primary bg-opacity-10 fw-bold' : '';
+                    const checkIcon = isCurrent ? '<i class="fa-solid fa-check ms-auto text-primary"></i>' : '';
+                    
+                    $folderList.append(`
+                        <a href="#" class="list-group-item list-group-item-themed list-group-item-action d-flex align-items-center gap-2 px-4 py-2 modal-move-folder ${activeClass}" data-folder-id="${f.id}">
+                            <i class="fa-solid fa-folder text-warning opacity-75"></i> 
+                            <span>${escapeHtml(f.name)}</span>
+                            ${checkIcon}
+                        </a>
+                    `);
+                });
+                actionsModalInstance.show();
+            });
+        }
+
+        // If triggered from inside another modal (e.g. All History), wait for it to close
+        const $parentModal = $(this).closest('.modal');
+        if ($parentModal.length && $parentModal.hasClass('show')) {
+            $parentModal.one('hidden.bs.modal', function() {
+                openActionsModal();
+            });
+            bootstrap.Modal.getInstance($parentModal[0])?.hide();
+        } else {
+            openActionsModal();
+        }
+    });
+
+    // Copy URL
+    $('#action-copy-url').on('click', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        navigator.clipboard.writeText(activeActionUrl).then(() => {
+            $btn.find('i').removeClass('fa-copy').addClass('fa-check text-success');
+            setTimeout(() => {
+                $btn.find('i').removeClass('fa-check text-success').addClass('fa-copy');
+            }, 1500);
+        });
+    });
+
+    // Move to folder (None / Recent)
+    $(document).on('click', '.modal-move-folder-none', function(e) {
+        e.preventDefault();
+        moveChatToFolder(activeActionConvId, null);
+    });
+
+    // Move to a named folder
+    $(document).on('click', '.modal-move-folder', function(e) {
+        e.preventDefault();
+        const folderId = $(this).data('folder-id');
+        moveChatToFolder(activeActionConvId, folderId);
+    });
+
+    // Create folder inline and immediately move chat into it
+    $('#modal-create-folder-btn').on('click', function() {
+        const name = $('#modal-new-folder-name').val().trim();
+        if (!name) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+        $.ajax({
+            url: '/api/folders',
+            method: 'POST',
+            data: JSON.stringify({ name: name }),
+            contentType: 'application/json',
+            success: function(res) {
+                const newFolderId = res.id;
+                moveChatToFolder(activeActionConvId, newFolderId);
+                window.loadFolders();
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="fa-solid fa-plus"></i>');
+                $('#modal-new-folder-name').val('');
+            }
+        });
+    });
+
+    // Enter key in the folder name field triggers create
+    $('#modal-new-folder-name').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#modal-create-folder-btn').click();
+        }
+    });
+
+    function moveChatToFolder(convId, folderId) {
+        $.ajax({
+            url: `/api/conversations/${convId}/folder`,
+            method: 'PATCH',
+            data: JSON.stringify({ folder_id: folderId }),
+            contentType: 'application/json',
+            success: function() {
+                actionsModalInstance.hide();
+                window.loadFolders();
+                window.loadConversations();
+            }
+        });
+    }
+
+    // Delete chat
+    $('#action-delete-chat').on('click', function(e) {
+        e.preventDefault();
+        if (!confirm('Delete this conversation?')) return;
+        $.ajax({
+            url: `/api/conversations/${activeActionConvId}`,
+            method: 'DELETE',
+            success: function() {
+                actionsModalInstance.hide();
+                if (currentConversationId == activeActionConvId) {
+                    $('.new-chat-btn').click();
+                } else {
+                    window.loadConversations();
+                }
+            }
+        });
+    });
 
     $(document).on('click', '.sidebar-chat-title', function() {
         const id = $(this).closest('.history-item').data('id');
@@ -724,6 +957,8 @@ $(document).ready(function() {
                 const url = window.location.origin + '/c/' + conv.uuid;
 
                 // Create unique URL link
+                const folderBadge = conv.folder_id ? `<span class="badge bg-warning bg-opacity-25 text-warning-emphasis"><i class="fa-solid fa-folder me-1"></i>Folder</span>` : '';
+                
                 $('#allHistoryList').append(`
                     <div class="card shadow-sm border border-secondary border-opacity-10 rounded-3 mb-2">
                         <div class="card-body p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
@@ -734,11 +969,19 @@ $(document).ready(function() {
                                 <div class="text-muted small d-flex flex-wrap gap-3">
                                     <span><i class="fa-regular fa-clock me-1"></i> ${dateStr}</span>
                                     <span><i class="fa-solid fa-microchip me-1"></i> ${escapeHtml(models)}</span>
+                                    ${folderBadge}
                                 </div>
                             </div>
                             <div class="d-flex gap-2 flex-shrink-0">
                                 <a href="${url}" class="btn btn-sm btn-primary rounded-pill px-3">Open</a>
                                 <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copyUniqueUrl('${url}', this)"><i class="fa-solid fa-link"></i></button>
+                                <button class="btn btn-link p-0 text-muted history-dots open-chat-actions" 
+                                        data-conv-id="${conv.id}" 
+                                        data-conv-title="${escapeHtml(conv.title || 'New Chat')}" 
+                                        data-conv-url="${url}"
+                                        data-folder-id="${conv.folder_id || ''}">
+                                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                                </button>
                             </div>
                         </div>
                     </div>

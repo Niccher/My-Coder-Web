@@ -171,4 +171,29 @@ class ConversationsController extends BaseController
             'message_count'   => count($messagesToCopy),
         ], 201);
     }
+
+    /**
+     * PATCH /api/conversations/{id}/folder
+     */
+    public function updateFolder(int $id): ResponseInterface
+    {
+        $userId    = auth()->id();
+        $convModel = new ConversationModel();
+        $conv      = $convModel->findForUser($id, $userId);
+
+        if (!$conv) {
+            return $this->failNotFound('Conversation not found.');
+        }
+
+        $body     = $this->request->getJSON(true);
+        $folderId = isset($body['folder_id']) ? (int)$body['folder_id'] : null;
+
+        $db = \Config\Database::connect();
+        $db->table('conversations')
+           ->where('id', $id)
+           ->where('user_id', $userId)
+           ->update(['folder_id' => $folderId]);
+
+        return $this->respond(['message' => 'Folder updated successfully']);
+    }
 }

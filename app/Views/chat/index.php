@@ -60,9 +60,9 @@
             <!-- Header -->
             <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
                 <h5 class="modal-title fw-bold" id="settingsModalLabel">
-                    <i class="fa-solid fa-gear me-2 opacity-50"></i>Settings
+                    <i class="fa-solid fa-gear me-2"></i>Dashboard Settings
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <!-- Body: Sidebar + Content -->
@@ -458,20 +458,77 @@
     </div>
 </div>
 
+<!-- Chat Actions Modal -->
+<div class="modal fade" id="chatActionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content modal-content-themed border-0 shadow-lg rounded-4">
+            <div class="modal-header px-4 py-3">
+                <h6 class="modal-title fw-bold text-truncate" id="chatActionsTitle">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Chat Actions
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="list-group list-group-flush">
+                    
+                    <!-- Chat URL display + copy -->
+                    <div class="px-4 py-3 border-bottom border-themed">
+                        <small class="section-label d-block mb-2">Share Link</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" id="action-url-display" class="form-control form-control-sm bg-transparent border-themed text-themed rounded-pill" readonly style="font-size: 0.8rem;">
+                            <button class="btn btn-sm btn-gradient-primary rounded-pill flex-shrink-0" id="action-copy-url">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Folder Section -->
+                    <div class="px-4 pt-3 pb-1">
+                        <small class="section-label">Organize</small>
+                    </div>
+                    <a href="#" class="list-group-item list-group-item-themed list-group-item-action d-flex align-items-center gap-2 px-4 py-2 modal-move-folder-none" data-folder-id="">
+                        <i class="fa-regular fa-folder text-muted"></i> <span>Recent Conversations</span>
+                    </a>
+                    <div id="modal-folder-list" style="max-height: 180px; overflow-y: auto;">
+                        <!-- Folder options injected here -->
+                    </div>
+
+                    <!-- Create new folder inline -->
+                    <div class="px-4 py-2 border-top border-themed">
+                        <small class="section-label d-block mb-2">New Category</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" id="modal-new-folder-name" class="form-control form-control-sm bg-transparent border-themed text-themed rounded-pill" placeholder="Folder name..." style="font-size: 0.85rem;">
+                            <button class="btn btn-sm btn-gradient-primary rounded-pill flex-shrink-0" id="modal-create-folder-btn">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-top border-themed">
+                        <a href="#" class="list-group-item list-group-item-themed list-group-item-action d-flex align-items-center gap-2 px-4 py-3 text-danger fw-semibold" id="action-delete-chat">
+                            <i class="fa-solid fa-trash-can"></i> <span>Delete Chat Permanently</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- All History Modal -->
 <div class="modal fade" id="allHistoryModal" tabindex="-1" aria-labelledby="allHistoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header px-4 py-3 border-bottom border-secondary-subtle">
+        <div class="modal-content modal-content-themed border-0 shadow-lg rounded-4">
+            <div class="modal-header px-4 py-3">
                 <h5 class="modal-title fw-bold" id="allHistoryModalLabel">
-                    <i class="fa-solid fa-clock-rotate-left me-2 opacity-50"></i>All History
+                    <i class="fa-solid fa-clock-rotate-left me-2"></i>Global History Explorer
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden border border-secondary border-opacity-25 bg-body-tertiary">
+                <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden border border-themed bg-transparent">
                     <span class="input-group-text bg-transparent border-0 ps-3 text-muted"><i class="fa-solid fa-search"></i></span>
-                    <input type="text" id="historySearchInput" class="form-control border-0 bg-transparent shadow-none" placeholder="Search conversations...">
+                    <input type="text" id="historySearchInput" class="form-control border-0 bg-transparent shadow-none text-themed" placeholder="Search conversations...">
                 </div>
                 <div id="allHistoryList" class="d-flex flex-column gap-2" style="min-height: 200px;">
                     <!-- Loaded via JS -->
