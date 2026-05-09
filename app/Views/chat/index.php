@@ -73,7 +73,7 @@
 
 <!-- Settings Modal -->
 <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content settings-modal border-0 shadow-lg">
 
             <!-- Header -->
@@ -85,8 +85,8 @@
             </div>
 
             <!-- Body: Sidebar + Content -->
-            <div class="modal-body p-0">
-                <div class="d-flex settings-body">
+            <div class="modal-body p-0 d-flex flex-column" style="min-height: 0;">
+                <div class="d-flex settings-body flex-grow-1" style="min-height: 0; overflow: hidden;">
 
                     <!-- Sidebar Nav -->
                     <div class="nav nav-pills flex-column settings-nav border-end border-secondary-subtle p-3" role="tablist" aria-orientation="vertical">
@@ -116,7 +116,7 @@
                     </div>
 
                     <!-- Tab Content -->
-                    <div class="tab-content settings-content p-4 flex-grow-1">
+                    <div class="tab-content settings-content p-4 flex-grow-1" style="overflow-y: auto; min-height: 0;">
 
                         <!-- ── Profile ──────────────────────────── -->
                         <div class="tab-pane fade show active" id="sp-profile">
@@ -291,7 +291,7 @@
                         <!-- ── Models & Tokens ───────────────────── -->
                         <div class="tab-pane fade" id="sp-models">
                             <h6 class="settings-heading">Simultaneous Models</h6>
-                            <p class="settings-desc">Configure up to 3 AI models to run side-by-side. The <strong>Master Model</strong> (slot 4) evaluates which response is best.</p>
+                            <p class="settings-desc">Configure up to 6 AI models to run side-by-side. The <strong>Master Model</strong> (slot 7) evaluates which response is best.</p>
 
                             <div id="model-save-status" class="mb-3" style="display:none;"></div>
 
@@ -300,7 +300,10 @@
                                 ['slot' => 1, 'badge' => 'bg-primary',         'label' => 'Model 1'],
                                 ['slot' => 2, 'badge' => 'bg-success',         'label' => 'Model 2'],
                                 ['slot' => 3, 'badge' => 'bg-warning text-dark','label' => 'Model 3'],
-                                ['slot' => 4, 'badge' => 'bg-danger',           'label' => 'Master ★'],
+                                ['slot' => 4, 'badge' => 'bg-info',            'label' => 'Model 4'],
+                                ['slot' => 5, 'badge' => 'bg-secondary',       'label' => 'Model 5'],
+                                ['slot' => 6, 'badge' => 'bg-dark text-white', 'label' => 'Model 6'],
+                                ['slot' => 7, 'badge' => 'bg-danger',          'label' => 'Master ★'],
                             ];
                             $providerOptions = [
                                 'openai'     => 'OpenAI',
@@ -324,12 +327,14 @@
                             ];
                             ?>
 
+                            <div class="row g-3">
                             <?php foreach ($slots as $s) : ?>
-                            <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm mb-3 rounded-4">
+                            <div class="col-md-6">
+                                <div class="card bg-body-tertiary border-secondary border-opacity-25 shadow-sm h-100 rounded-4">
                                 <!-- Top Row: Icon + Provider (FlexRow) -->
                                 <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-2 px-3 d-flex align-items-center gap-3">
                                     <div class="provider-icon-badge d-flex align-items-center justify-content-center rounded-circle shadow-sm fw-bold text-white" id="provider_icon_<?= $s['slot'] ?>" style="width:36px;height:36px;font-size:0.75rem;flex-shrink:0;background:#6c757d;transition:background 0.3s;">
-                                        <?= $s['slot'] == 4 ? '<i class="fa-solid fa-star"></i>' : $s['slot'] ?>
+                                        <?= $s['slot'] == 7 ? '<i class="fa-solid fa-star"></i>' : $s['slot'] ?>
                                     </div>
                                     <select class="form-select border-0 bg-transparent fw-semibold shadow-none model-provider p-0 text-body fs-6" data-slot="<?= $s['slot'] ?>" id="model_provider_<?= $s['slot'] ?>" style="cursor:pointer;">
                                         <option value="">-- Select Provider --</option>
@@ -340,8 +345,8 @@
                                 </div>
 
                                 <!-- Rows Below: Stacked Model & Token -->
-                                <div class="card-body px-3 py-3 ps-5">
-                                    <div class="d-flex flex-column gap-2 border-start border-2 border-secondary border-opacity-25 ps-3 py-1 ms-1">
+                                <div class="card-body px-3 py-3 ps-md-5 ps-3">
+                                    <div class="d-flex flex-column gap-2 border-start border-2 border-secondary border-opacity-25 ps-md-3 ps-2 py-1 ms-1">
                                         <!-- Model Select -->
                                         <select class="form-select form-select-sm model-name bg-body" data-slot="<?= $s['slot'] ?>" id="model_name_<?= $s['slot'] ?>">
                                             <option value="">-- Select Model --</option>
@@ -376,7 +381,9 @@
                                     </div>
                                 </div>
                             </div>
+                            </div>
                             <?php endforeach ?>
+                            </div>
 
                             <!-- Inline JS: provider meta + model options for JS -->
                             <script>
@@ -643,7 +650,7 @@ $(document).ready(function () {
         $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Saving…');
 
         const slots = [];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= 7; i++) {
             const rawLimit = $(`#model_history_limit_${i}`).val();
             slots.push({
                 slot:          i,

@@ -31,7 +31,7 @@ class SettingsController extends BaseController
         $raw    = $model->getForUser($userId);
 
         $result = [];
-        foreach ([1, 2, 3, 4] as $slot) {
+        foreach ([1, 2, 3, 4, 5, 6, 7] as $slot) {
             $row = $raw[$slot] ?? [];
             $result[$slot] = [
                 'model_slot'    => $slot,
@@ -78,7 +78,7 @@ class SettingsController extends BaseController
             $provider   = trim($slot['provider'] ?? '');
             $apiKey     = trim($slot['api_key'] ?? '');
 
-            if ($slotNum < 1 || $slotNum > 4) {
+            if ($slotNum < 1 || $slotNum > 7) {
                 continue;
             }
 

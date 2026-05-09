@@ -78,13 +78,13 @@ class ChatController extends BaseController
 
         // ── Load model settings ───────────────────────────────────────────────
         $settingModel = new UserSettingModel();
-        $settings     = $settingModel->getForUser($userId); // keyed by slot 1–4
+        $settings     = $settingModel->getForUser($userId); // keyed by slot 1–7
         
-        // Filter active standard slots (1–3)
+        // Collect standard active models (slots 1–6)
         $activeModels = [];
-        foreach ([1, 2, 3] as $slot) {
-            if (!empty($settings[$slot]['api_key']) && !empty($settings[$slot]['provider'])) {
-                $activeModels[$slot] = $settings[$slot];
+        foreach ($settings as $slot => $model) {
+            if ($slot < 7 && !empty($model['api_key']) && !empty($model['provider'])) {
+                $activeModels[$slot] = $model;
             }
         }
 
@@ -135,12 +135,12 @@ class ChatController extends BaseController
             ];
         }
 
-        // ── Master Model Evaluation (slot 4) ──────────────────────────────────
+        // ── Master Model Evaluation (slot 7) ──────────────────────────────────
         $masterEval = null;
-        if (!empty($settings[4]['api_key']) && !empty($settings[4]['provider']) && count($modelResults) > 1) {
-            $masterEval = $this->queryMasterModel($settings[4], $prompt, $modelResults);
+        if (!empty($settings[7]['api_key']) && !empty($settings[7]['provider']) && count($modelResults) > 1) {
+            $masterEval = $this->queryMasterModel($settings[7], $prompt, $modelResults);
             if ($masterEval !== null) {
-                $masterName = $settings[4]['model_name'] ?? 'Master';
+                $masterName = $settings[7]['model_name'] ?? 'Master';
                 $msgModel->saveAiMessage($conversationId, $masterName . ' [Master]', $masterEval);
             }
         }

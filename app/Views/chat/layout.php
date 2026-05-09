@@ -7,6 +7,8 @@
     <title>
         <?= $title ?? 'myCoder Chat'?>
     </title>
+    
+    <?= csrf_meta() ?>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="<?= base_url('favicon.png')?>">

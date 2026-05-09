@@ -1,4 +1,10 @@
 $(document).ready(function() {
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="X-CSRF-TOKEN"]').attr('content')
+        }
+    });
+
     const $chatInput = $('#chat-input');
     const $chatContainer = $('#chat-container');
     const $inputWrapper = $('#input-wrapper');
@@ -123,7 +129,7 @@ $(document).ready(function() {
     // Track the active conversation across messages
 
 
-    function loadConversations() {
+    window.loadConversations = function() {
         $.getJSON('/api/conversations', function(data) {
             $sidebarHistoryList.find('.history-item, .no-chats').remove();
 
@@ -148,7 +154,7 @@ $(document).ready(function() {
         });
     }
 
-    loadConversations();
+    window.loadConversations();
 
     // Check if unique URL ID was passed
     if (window.serverData && window.serverData.chatUuid) {
@@ -170,7 +176,7 @@ $(document).ready(function() {
                 if (currentConversationId == id) {
                     $('.new-chat-btn').click();
                 } else {
-                    loadConversations();
+                    window.loadConversations();
                 }
             }
         });
@@ -187,11 +193,11 @@ $(document).ready(function() {
                 <p class="lead text-muted">How can I help you today?</p>
             </div>
         `);
-        loadConversations();
+        window.loadConversations();
         if ($(window).width() <= 768) $sidebarBackdrop.click();
     });
 
-    function loadConversation(id) {
+    window.loadConversation = function(id) {
         userMessageIndex = 0; // reset branch index
         $chatContainer.empty().append('<div class="text-center mt-5 text-muted"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i> Loading...</div>');
         
@@ -210,7 +216,7 @@ $(document).ready(function() {
                 });
             }
             scrollToBottom();
-            loadConversations();
+            window.loadConversations();
             if ($(window).width() <= 768) $sidebarBackdrop.click();
         }).fail(function() {
             $chatContainer.empty().append('<div class="text-center mt-5 text-danger">Failed to load conversation.</div>');
@@ -222,11 +228,12 @@ $(document).ready(function() {
         if (message === '' && attachedFiles.length === 0) return;
 
         let hasValidConfig = false;
+        let activeModelKeys = [];
         if (window.activeChatModels) {
-            for (let i = 1; i <= 3; i++) {
+            for (let i = 1; i <= 6; i++) {
                 if (window.activeChatModels[i] && window.activeChatModels[i].has_key && window.activeChatModels[i].model_name) {
                     hasValidConfig = true;
-                    break;
+                    activeModelKeys.push(i);
                 }
             }
         }
@@ -249,7 +256,7 @@ $(document).ready(function() {
             $('#greeting-box').fadeOut(300, function() { $(this).remove(); });
         }
 
-        appendMultiModelResponse(message, fileContext);
+        appendMultiModelResponse(message, fileContext, activeModelKeys);
     }
 
 
@@ -292,11 +299,13 @@ $(document).ready(function() {
         grok:     'fa-bolt',
         openai:   'fa-robot',
     };
-    const kanbanClasses = ['kanban-bg-primary', 'kanban-bg-success', 'kanban-bg-info'];
+    const kanbanClasses = ['kanban-bg-primary', 'kanban-bg-success', 'kanban-bg-info', 'kanban-bg-warning', 'kanban-bg-secondary', 'kanban-bg-dark'];
 
-    function appendMultiModelResponse(userPrompt, fileContext) {
+    function appendMultiModelResponse(userPrompt, fileContext, activeModelKeys) {
         const timestampStr = getFullTimestamp();
         const messageId    = 'multi-' + Date.now();
+        const activeCount  = activeModelKeys?.length || 1;
+        const skeletons    = Array.from({length: activeCount}, (_, i) => i);
 
         // Show 3-column skeleton loader while API is in-flight
         const skeletonHtml = `
@@ -304,8 +313,8 @@ $(document).ready(function() {
                 <div class="avatar"><i class="fa-solid fa-layer-group"></i></div>
                 <div class="message-body w-100">
                     <div class="row g-2 kanban-container mb-3">
-                        ${[1,2,3].map(i => `
-                        <div class="col-md-4">
+                        ${skeletons.map(i => `
+                        <div class="col-md-6 col-xl-4">
                             <div class="kanban-card">
                                 <div class="kanban-header"><i class="fa-solid fa-circle-notch fa-spin me-2 opacity-50"></i> Querying...</div>
                                 <div class="kanban-body">
@@ -346,7 +355,7 @@ $(document).ready(function() {
                 }
 
                 if (wasNew) {
-                    loadConversations(); // Refresh list to show the new chat dynamically
+                    window.loadConversations(); // Refresh list to show the new chat dynamically
                 }
 
                 const models    = data.models || [];
@@ -358,7 +367,7 @@ $(document).ready(function() {
                     const icon      = providerIcons[model.provider] || 'fa-microchip';
                     const className = kanbanClasses[idx] || 'kanban-bg-primary';
                     return `
-                        <div class="col-md-4">
+                        <div class="col-md-6 col-xl-4">
                             <div class="kanban-card ${className}" id="${messageId}_col_${idx}">
                                 <div class="kanban-header border-opacity-25">
                                     <i class="fa-solid ${icon} me-1"></i> ${escapeHtml(model.model_name)}
@@ -717,7 +726,7 @@ $(document).ready(function() {
                     loadConversation(res.conversation_id);
                 }
                 // Refresh sidebar to show new branch
-                loadConversations();
+                window.loadConversations();
             },
             error: function(xhr) {
                 const msg = xhr.responseJSON?.message || 'Failed to branch conversation.';
