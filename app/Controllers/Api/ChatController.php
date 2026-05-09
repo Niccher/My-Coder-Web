@@ -48,6 +48,7 @@ class ChatController extends BaseController
 
         // ── Conversation management ───────────────────────────────────────────
         $convModel = new ConversationModel();
+        $uuid = '';
         if ($conversationId === 0) {
             $title = substr($prompt, 0, 40) . (strlen($prompt) > 40 ? '...' : '');
             $conversationId = $convModel->insert([
@@ -55,12 +56,17 @@ class ChatController extends BaseController
                 'title'      => $title,
                 'persona_id' => $personaId > 0 ? $personaId : null
             ], true);
+            $newConv = $convModel->find($conversationId);
+            if ($newConv) {
+                $uuid = $newConv['uuid'] ?? '';
+            }
         } else {
             // Validate ownership
             $conv = $convModel->findForUser($conversationId, $userId);
             if (!$conv) {
                 return $this->failNotFound('Conversation not found.');
             }
+            $uuid = $conv['uuid'] ?? '';
             // If personaId was NOT provided in request, use the one from DB
             if ($personaId <= 0 && !empty($conv['persona_id'])) {
                 $personaId = (int) $conv['persona_id'];
@@ -150,6 +156,7 @@ class ChatController extends BaseController
 
         return $this->respond([
             'conversation_id' => $conversationId,
+            'uuid'            => $uuid,
             'persona_id'      => $personaId,
             'user_message_id' => $userMsgId,
             'models'          => $modelResults,

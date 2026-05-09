@@ -156,10 +156,6 @@ $(document).ready(function() {
 
     window.loadConversations();
 
-    // Check if unique URL ID was passed
-    if (window.serverData && window.serverData.chatUuid) {
-        loadConversation(window.serverData.chatUuid);
-    }
 
     $(document).on('click', '.sidebar-chat-title', function() {
         const id = $(this).closest('.history-item').data('id');
@@ -193,6 +189,7 @@ $(document).ready(function() {
                 <p class="lead text-muted">How can I help you today?</p>
             </div>
         `);
+        $('.user-profile-wrapper').fadeIn(300);
         window.loadConversations();
         if ($(window).width() <= 768) $sidebarBackdrop.click();
     });
@@ -207,9 +204,11 @@ $(document).ready(function() {
             $('#current-persona-name').text(data.persona_name || 'Default Assistant');
             $chatContainer.empty();
             
-            if (!data.messages === undefined || data.messages.length === 0) {
+            if (data.messages === undefined || data.messages.length === 0) {
                 $chatContainer.append('<div class="text-center mt-5 text-muted">No messages found.</div>');
+                $('.user-profile-wrapper').fadeIn(300);
             } else {
+                $('.user-profile-wrapper').fadeOut(300);
                 data.messages.forEach(msg => {
                     const aiTitle = (msg.role === 'ai') ? msg.model_name : null;
                     appendMessage(msg.role, msg.content, aiTitle, msg.id);
@@ -221,6 +220,11 @@ $(document).ready(function() {
         }).fail(function() {
             $chatContainer.empty().append('<div class="text-center mt-5 text-danger">Failed to load conversation.</div>');
         });
+    }
+
+    // Check if unique URL ID was passed (moved here after loadConversation is defined)
+    if (window.serverData && window.serverData.chatUuid) {
+        loadConversation(window.serverData.chatUuid);
     }
 
     function sendMessage() {
@@ -254,6 +258,9 @@ $(document).ready(function() {
 
         if ($('#greeting-box').length) {
             $('#greeting-box').fadeOut(300, function() { $(this).remove(); });
+            $('.user-profile-wrapper').fadeOut(300);
+        } else {
+            $('.user-profile-wrapper').fadeOut(300); // ensure it's hidden on subsequent queries too
         }
 
         appendMultiModelResponse(message, fileContext, activeModelKeys);
@@ -273,11 +280,12 @@ $(document).ready(function() {
 
         const titleHtml = customTitle ? `<div class="mb-2 fw-semibold text-primary"><i class="fa-solid fa-microchip me-1"></i> ${escapeHtml(customTitle)}</div>` : '';
         
-        // Branch button only on user messages
+        // Branch & Retry buttons only on user messages
         const msgIdx = role === 'user' ? ++userMessageIndex : null;
         const branchBtn = (role === 'user') 
-            ? `<button class="btn btn-link p-0 ms-2 branch-msg-btn text-muted" title="Branch from here" data-msg-idx="${msgIdx}" ${msgId ? `data-msg-id="${msgId}"` : ''}><i class="fa-solid fa-code-branch" style="font-size:0.8rem;"></i></button>`
-            : '';
+            ? `<button class="btn btn-link p-0 ms-2 branch-msg-btn text-muted" title="Branch from here" data-msg-idx="${msgIdx}" ${msgId ? `data-msg-id="${msgId}"` : ''}><i class="fa-solid fa-code-branch" style="font-size:0.8rem;"></i></button>
+               <button class="btn btn-link p-0 ms-2 retry-msg-btn text-muted" title="Resend this query"><i class="fa-solid fa-arrows-rotate" style="font-size:0.8rem;"></i></button>`
+            : `<button class="btn btn-link p-0 ms-2 copy-ai-btn text-muted" title="Copy response"><i class="fa-regular fa-copy" style="font-size:0.8rem;"></i></button>`;
         
         const messageHtml = `
             <div class="message ${role} animate__animated animate__fadeInUp" ${msgId ? `data-msg-id="${msgId}"` : `data-msg-idx="${msgIdx}"`}>
@@ -301,20 +309,29 @@ $(document).ready(function() {
     };
     const kanbanClasses = ['kanban-bg-primary', 'kanban-bg-success', 'kanban-bg-info', 'kanban-bg-warning', 'kanban-bg-secondary', 'kanban-bg-dark'];
 
+    function getKanbanColClass(count) {
+        if (count === 1) return 'col-12';
+        if (count === 2) return 'col-12 col-md-6';
+        if (count === 3) return 'col-12 col-md-4';
+        if (count === 4) return 'col-12 col-md-6 col-xl-3';
+        return 'col-12 col-md-4 col-xl-2';
+    }
+
     function appendMultiModelResponse(userPrompt, fileContext, activeModelKeys) {
         const timestampStr = getFullTimestamp();
         const messageId    = 'multi-' + Date.now();
         const activeCount  = activeModelKeys?.length || 1;
+        const colClass     = getKanbanColClass(activeCount);
         const skeletons    = Array.from({length: activeCount}, (_, i) => i);
 
-        // Show 3-column skeleton loader while API is in-flight
+        // Show skeleton loader while API is in-flight
         const skeletonHtml = `
             <div id="${messageId}" class="message ai multi-model-response animate__animated animate__fadeInUp w-100 pe-md-5">
                 <div class="avatar"><i class="fa-solid fa-layer-group"></i></div>
                 <div class="message-body w-100">
                     <div class="row g-2 kanban-container mb-3">
                         ${skeletons.map(i => `
-                        <div class="col-md-6 col-xl-4">
+                        <div class="${colClass}">
                             <div class="kanban-card">
                                 <div class="kanban-header"><i class="fa-solid fa-circle-notch fa-spin me-2 opacity-50"></i> Querying...</div>
                                 <div class="kanban-body">
@@ -356,6 +373,9 @@ $(document).ready(function() {
 
                 if (wasNew) {
                     window.loadConversations(); // Refresh list to show the new chat dynamically
+                    if (data.uuid) {
+                        window.history.pushState({}, '', `/c/${data.uuid}`);
+                    }
                 }
 
                 const models    = data.models || [];
@@ -363,15 +383,19 @@ $(document).ready(function() {
                 const masterName = data.master_model_name || 'Master Evaluation';
 
                 // Build kanban columns from real responses
+                const realColClass = getKanbanColClass(models.length || 1);
                 const kanbanCols = models.map((model, idx) => {
                     const icon      = providerIcons[model.provider] || 'fa-microchip';
                     const className = kanbanClasses[idx] || 'kanban-bg-primary';
                     return `
-                        <div class="col-md-6 col-xl-4">
+                        <div class="${realColClass}">
                             <div class="kanban-card ${className}" id="${messageId}_col_${idx}">
-                                <div class="kanban-header border-opacity-25">
-                                    <i class="fa-solid ${icon} me-1"></i> ${escapeHtml(model.model_name)}
-                                    ${model.error ? '<span class="badge bg-danger ms-2">Error</span>' : ''}
+                                <div class="kanban-header border-opacity-25 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fa-solid ${icon} me-1"></i> ${escapeHtml(model.model_name)}
+                                        ${model.error ? '<span class="badge bg-danger ms-2">Error</span>' : ''}
+                                    </div>
+                                    <button class="btn btn-link p-0 copy-kanban-btn text-secondary opacity-75 hover-opacity-100" title="Copy response"><i class="fa-regular fa-copy" style="font-size:0.8rem;"></i></button>
                                 </div>
                                 <div class="kanban-body markdown-body">
                                     <span class="streaming-content"></span><span class="typing-cursor"></span>
@@ -383,8 +407,9 @@ $(document).ready(function() {
                 $(`#${messageId} .message-body`).html(`
                     <div class="row g-2 kanban-container mb-3">${kanbanCols}</div>
                     <div class="master-evaluation-card mb-2 shadow-sm" style="display:none;">
-                        <div class="kanban-header text-danger bg-danger bg-opacity-10">
-                            <i class="fa-solid fa-star me-1"></i> ${escapeHtml(masterName)}
+                        <div class="kanban-header text-danger bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                            <div><i class="fa-solid fa-star me-1"></i> ${escapeHtml(masterName)}</div>
+                            <button class="btn btn-link p-0 copy-kanban-btn text-danger opacity-75 hover-opacity-100" title="Copy response"><i class="fa-regular fa-copy" style="font-size:0.8rem;"></i></button>
                         </div>
                         <div class="kanban-body markdown-body">
                             <span class="streaming-content"></span><span class="typing-cursor"></span>
@@ -696,7 +721,44 @@ $(document).ready(function() {
         });
     }
 
-    // --- Branching Logic ---
+    // --- Copy Actions ---
+    $(document).on('click', '.copy-kanban-btn', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const text = $btn.closest('.kanban-card, .master-evaluation-card').find('.kanban-body').text().trim();
+        if (text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const origHtml = $btn.html();
+                $btn.html('<i class="fa-solid fa-check text-success" style="font-size:0.8rem;"></i>');
+                setTimeout(() => $btn.html(origHtml), 2000);
+            });
+        }
+    });
+
+    $(document).on('click', '.copy-ai-btn', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const text = $btn.closest('.message').find('.message-content').text().trim();
+        if (text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const origHtml = $btn.html();
+                $btn.html('<i class="fa-solid fa-check text-success" style="font-size:0.8rem;"></i>');
+                setTimeout(() => $btn.html(origHtml), 2000);
+            });
+        }
+    });
+
+    // --- Branching & Retry Logic ---
+    $(document).on('click', '.retry-msg-btn', function(e) {
+        e.preventDefault();
+        const $msg = $(this).closest('.message.user');
+        const text = $msg.find('.message-content').text().trim();
+        if (text) {
+            $chatInput.val(text);
+            sendMessage();
+        }
+    });
+
     $(document).on('click', '.branch-msg-btn', function(e) {
         e.preventDefault();
         const $btn = $(this);
