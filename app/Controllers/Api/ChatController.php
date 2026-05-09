@@ -107,6 +107,9 @@ class ChatController extends BaseController
                 $systemInstructions = $persona['instructions'];
             }
         }
+        
+        // Ensure clean output without internal reasoning leakage
+        $systemInstructions = trim($systemInstructions) . "\n\nCRITICAL: Output ONLY the final response content. Do not include <thought> blocks, internal reasoning, musings, or step-by-step monologues in your output unless explicitly asked to think aloud.";
 
         // ── Build full prompt (with file context if any) ──────────────────────
         // Note: system instructions are passed natively to each provider's system field.

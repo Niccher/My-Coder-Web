@@ -16,7 +16,15 @@ $(document).ready(function() {
     let activePersonaId = 0;
     let userMessageIndex = 0; // tracks position of user messages in current conversation
     let currentConversationId = null;
+    let currentChatRequest = null;
+    let userHasScrolledUp = false;
     const $sidebarHistoryList = $('#sidebar-history-list');
+
+    $chatContainer.on('scroll', function() {
+        const threshold = 50; // pixels from the bottom
+        const isAtBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - threshold;
+        userHasScrolledUp = !isAtBottom;
+    });
 
     // --- Marked.js & Prism Configuration ---
     const renderer = new marked.Renderer();
@@ -118,6 +126,12 @@ $(document).ready(function() {
         sendMessage();
     });
 
+    $('#stop-btn').on('click', function() {
+        if (currentChatRequest) {
+            currentChatRequest.abort();
+        }
+    });
+
     // Handle Enter key (Shift+Enter for newline)
     $chatInput.on('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -183,13 +197,13 @@ $(document).ready(function() {
         userMessageIndex = 0;
         window.history.pushState({}, '', '/');
         
+        const userName = (window.serverData && window.serverData.userName) ? window.serverData.userName : 'User';
         $chatContainer.empty().append(`
             <div id="greeting-box" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center pb-5 animate__animated animate__fadeIn">
-                <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Hello, User</h1>
+                <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Hello, ${userName}</h1>
                 <p class="lead text-muted">How can I help you today?</p>
             </div>
         `);
-        $('.user-profile-wrapper').fadeIn(300);
         window.loadConversations();
         if ($(window).width() <= 768) $sidebarBackdrop.click();
     });
@@ -206,15 +220,13 @@ $(document).ready(function() {
             
             if (data.messages === undefined || data.messages.length === 0) {
                 $chatContainer.append('<div class="text-center mt-5 text-muted">No messages found.</div>');
-                $('.user-profile-wrapper').fadeIn(300);
             } else {
-                $('.user-profile-wrapper').fadeOut(300);
                 data.messages.forEach(msg => {
                     const aiTitle = (msg.role === 'ai') ? msg.model_name : null;
                     appendMessage(msg.role, msg.content, aiTitle, msg.id);
                 });
             }
-            scrollToBottom();
+            scrollToBottom(true);
             window.loadConversations();
             if ($(window).width() <= 768) $sidebarBackdrop.click();
         }).fail(function() {
@@ -228,6 +240,7 @@ $(document).ready(function() {
     }
 
     function sendMessage() {
+        if (currentChatRequest) return;
         const message = $chatInput.val().trim();
         if (message === '' && attachedFiles.length === 0) return;
 
@@ -250,6 +263,8 @@ $(document).ready(function() {
 
         appendMessage('user', message);
         $chatInput.val('').css('height', 'auto');
+        $('#send-btn').addClass('d-none');
+        $('#stop-btn').removeClass('d-none');
 
         // Collect file context
         const fileContext = attachedFiles.map(f => `=== ${f.name} ===\n${f.content || ''}`).join('\n\n');
@@ -258,9 +273,6 @@ $(document).ready(function() {
 
         if ($('#greeting-box').length) {
             $('#greeting-box').fadeOut(300, function() { $(this).remove(); });
-            $('.user-profile-wrapper').fadeOut(300);
-        } else {
-            $('.user-profile-wrapper').fadeOut(300); // ensure it's hidden on subsequent queries too
         }
 
         appendMultiModelResponse(message, fileContext, activeModelKeys);
@@ -297,7 +309,7 @@ $(document).ready(function() {
             </div>
         `;
         $chatContainer.append(messageHtml);
-        scrollToBottom();
+        scrollToBottom(true);
     }
 
     // Icon map for known providers
@@ -347,10 +359,10 @@ $(document).ready(function() {
             </div>
         `;
         $chatContainer.append(skeletonHtml);
-        scrollToBottom();
+        scrollToBottom(true);
 
         // POST to real backend
-        $.ajax({
+        currentChatRequest = $.ajax({
             url: '/api/chat',
             method: 'POST',
             contentType: 'application/json',
@@ -421,9 +433,12 @@ $(document).ready(function() {
                 // Stream each model response into its column
                 let doneCount = 0;
                 models.forEach((model, idx) => {
-                    const text = model.error
+                    let text = model.error
                         ? `⚠️ **Error:** ${model.error}`
                         : (model.content || '*(No response)*');
+
+                    // Remove thinking/thought blocks if any leaked through
+                    text = cleanseAiResponse(text);
 
                     streamText($(`#${messageId}_col_${idx} .streaming-content`), text, () => {
                         $(`#${messageId}_col_${idx} .typing-cursor`).remove();
@@ -437,7 +452,16 @@ $(document).ready(function() {
 
                 // If backend returned no master eval (e.g. not configured), keep it hidden
             },
-            error: function(xhr) {
+            error: function(xhr, status) {
+                if (status === 'abort') {
+                    $(`#${messageId} .message-body`).html(`
+                        <div class="alert alert-warning d-flex align-items-center gap-2 mb-0 border-warning-subtle" role="alert">
+                            <i class="fa-solid fa-hand text-warning"></i>
+                            <div>Generation aborted by user.</div>
+                        </div>
+                    `);
+                    return;
+                }
                 const errMsg = xhr.responseJSON?.messages?.error || xhr.responseJSON?.message || 'Failed to contact the AI backend.';
                 $(`#${messageId} .message-body`).html(`
                     <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
@@ -445,6 +469,11 @@ $(document).ready(function() {
                         <div>${escapeHtml(errMsg)}</div>
                     </div>
                 `);
+            },
+            complete: function() {
+                $('#send-btn').removeClass('d-none');
+                $('#stop-btn').addClass('d-none');
+                currentChatRequest = null;
             }
         });
     }
@@ -627,9 +656,23 @@ $(document).ready(function() {
         });
     }
 
-    function scrollToBottom() {
+    function cleanseAiResponse(text) {
+        if (!text) return '';
+        // Remove XML-style thought tags (DeepSeek/Gemini patterns)
+        let cleansed = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '');
+        // Remove common reasoning block markers
+        cleansed = cleansed.replace(/\[THOUGHT\][\s\S]*?\[\/THOUGHT\]/gi, '');
+        // Remove explicit "Okay, I will think..." style patterns if they are at the very start
+        // but only if there is a clear separation or if it's overly verbose.
+        // For safety, we prioritize tag removal as instructed by the backend prompt.
+        return cleansed.trim();
+    }
+
+    function scrollToBottom(force = false) {
+        if (!force && userHasScrolledUp) return;
         const scrollHeight = $chatContainer[0].scrollHeight;
-        $chatContainer.stop().animate({ scrollTop: scrollHeight }, 500);
+        // Faster animation (200ms) prevents fighting with user's manual scroll intent
+        $chatContainer.stop().animate({ scrollTop: scrollHeight }, 200); 
     }
 
     $('.toggle-sidebar').on('click', function() {

@@ -2,33 +2,13 @@
 
 <?= $this->section('content')?>
 
-<!-- User Profile Dropdown -->
-<div class="user-profile-wrapper position-absolute top-0 end-0 mt-3 me-4" style="z-index: 100;">
-    <div class="dropdown">
-        <button class="btn btn-link p-1 text-decoration-none d-flex align-items-center gap-2 profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <div class="avatar-sm"><?= strtoupper(substr(auth()->user()->username ?? 'U', 0, 1)) ?></div>
-            <span class="fw-medium text-themed d-none d-md-block"><?= esc(auth()->user()->username ?? 'User') ?></span>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary-subtle">
-            <li><h6 class="dropdown-header">Account (<?= esc(auth()->user()->email ?? '') ?>)</h6></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="fa-solid fa-user-gear opacity-50"></i> View Profile</a></li>
-            <li><button class="dropdown-item d-flex align-items-center gap-2" type="button" id="openSettingsDropdown"><i class="fa-solid fa-gear opacity-50"></i> Settings</button></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="json"><i class="fa-solid fa-file-code opacity-50"></i> Export as JSON</a></li>
-            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="xml"><i class="fa-solid fa-code opacity-50"></i> Export as XML</a></li>
-            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="yaml"><i class="fa-solid fa-file-lines opacity-50"></i> Export as YAML</a></li>
-            <li><a class="dropdown-item py-2 export-chat-btn d-flex align-items-center gap-2" href="#" data-format="pdf"><i class="fa-solid fa-file-pdf opacity-50"></i> Export as PDF</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="<?= url_to('logout') ?>"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-        </ul>
-    </div>
-</div>
+
 
 <div id="chat-container" class="d-flex flex-column">
     <div id="greeting-box" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center pb-5 animate__animated animate__fadeIn">
         <h1 class="display-4 fw-bold mb-3"
             style="background: linear-gradient(to right, #4285f4, #d96570); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            Hello, User</h1>
+            Hello, <?= esc(auth()->user()->username ?? 'User') ?></h1>
         <p class="lead text-muted">How can I help you today?</p>
     </div>
 </div>
@@ -58,6 +38,7 @@
         </div>
 
         <button id="send-btn" class="action-btn text-primary"><i class="fa-solid fa-paper-plane"></i></button>
+        <button id="stop-btn" class="action-btn text-danger d-none" title="Stop Generation"><i class="fa-solid fa-circle-stop"></i></button>
     </div>
 
     <!-- Active Models Container -->
@@ -512,7 +493,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <script>
-window.serverData = { chatUuid: '<?= esc($chatUuid ?? '') ?>' };
+window.serverData = { 
+    chatUuid: '<?= esc($chatUuid ?? '') ?>',
+    userName: '<?= esc(auth()->user()->username ?? 'User') ?>'
+};
 </script>
 <script>
 // ────────────────────────────────────────────────────────────
